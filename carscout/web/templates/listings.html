@@ -33,7 +33,7 @@
   <div class="actions"><button type="submit">Apply</button><a class="btn ghost" href="/">Reset</a></div>
 </form>
 
-<p class="count">{{ "{:,}".format(total) }} listing{{ '' if total == 1 else 's' }}</p>
+<p class="count">{{ "{:,}".format(total) }} car{{ '' if total == 1 else 's' }} <span class="muted small">(the same car on several sites is shown once)</span></p>
 
 {% if not items %}
 <div class="empty">
@@ -55,6 +55,8 @@
           {% if l.transmission %}<span>{{ l.transmission }}</span>{% endif %}
           {% if l.state %}<span>{{ l.suburb ~ ', ' if l.suburb }}{{ l.state }}</span>{% endif %}
         </p>
+        {% set also = others.get(l.id, [])|selectattr("is_active")|list %}
+        {% if also %}<p class="also small">Also on {% for o in also %}{{ source_badge(o.source, source_labels) }}{% if o.price and l.price and o.price != l.price %} <span class="muted">{{ o.price|money }}</span>{% endif %}{% endfor %}</p>{% endif %}
         <p class="meta">{{ source_badge(l.source, source_labels) }}
           {% if not l.is_active %}<span class="pill pill-off">Gone</span>{% endif %}
           <span class="muted">seen {{ l.first_seen|ago }}</span></p>

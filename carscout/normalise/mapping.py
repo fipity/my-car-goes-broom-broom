@@ -77,12 +77,23 @@ def _fill(template: str, m: re.Match[str]) -> str:
     return re.sub(r"\{(\d+)\}", group, template)
 
 
+_BADGE = re.compile(r"^(?:[A-Za-z]{2}|[B-DF-HJ-NP-TV-Zb-df-hj-np-tv-z]{3}|[A-Za-z]+\d+[A-Za-z]*)$")
+
+
+def normalise_variant(variant: str | None) -> str | None:
+    """Badge capitalisation: "Zr Hybrid" -> "ZR Hybrid", "Gxl" -> "GXL", "sr5" -> "SR5".
+    Two-letter tokens, vowel-less three-letter tokens and letter+digit tokens are badges."""
+    if not variant or not variant.strip():
+        return None
+    return " ".join(w.upper() if _BADGE.match(w) else w for w in variant.split())
+
+
 def normalise_model_variant(
     make: str | None, model: str | None, variant: str | None = None
 ) -> tuple[str | None, str | None]:
     """Model plus variant, applying the pattern rules in models.yaml (e.g. Mercedes "C200" ->
     model "C-Class", variant "C200 <variant>")."""
-    variant = variant.strip() if variant and variant.strip() else None
+    variant = normalise_variant(variant)
     if not model or not model.strip():
         return None, variant
     model = model.strip()

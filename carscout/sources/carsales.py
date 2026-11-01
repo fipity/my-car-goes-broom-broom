@@ -197,7 +197,7 @@ def _network_id(card: dict[str, Any]) -> str | None:
 
 class Plugin(SourcePlugin):
     name = "carsales"
-    parser_version = 1
+    parser_version = 2  # 2: badge case ("Zr" -> "ZR")
 
     # -- paths -----------------------------------------------------------------------------
     @staticmethod

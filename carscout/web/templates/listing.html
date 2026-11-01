@@ -33,13 +33,42 @@
   </dl>
 </section>
 
+{% if others %}
+<section>
+  <h2>Same car on other listings</h2>
+  <p class="muted small">
+    {% if vehicle and vehicle.match_method == 'vin' %}Matched by VIN.
+    {% elif vehicle and vehicle.match_method == 'rego' %}Matched by rego.
+    {% else %}Matched on make, model, year, odometer, price and location ({{ '%.0f'|format((vehicle.confidence or 0) * 100) }}% match). Check the photos if it matters.{% endif %}
+  </p>
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Source</th><th>Price</th><th>Odometer</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>{{ source_badge(l.source, source_labels) }} <span class="muted small">(this page)</span></td>
+        <td>{{ l.price|money }} <small>{{ l.price_type|price_type }}</small></td>
+        <td>{{ l.odometer_km|km if l.odometer_km is not none else '' }}</td>
+        <td>{{ 'Active' if l.is_active else 'Gone' }}</td><td></td></tr>
+      {% for o in others %}
+      <tr><td>{{ source_badge(o.source, source_labels) }}</td>
+        <td>{{ o.price|money }} <small>{{ o.price_type|price_type }}</small></td>
+        <td>{{ o.odometer_km|km if o.odometer_km is not none else '' }}</td>
+        <td>{{ 'Active' if o.is_active else 'Gone' }}</td>
+        <td><a href="/listings/{{ o.id }}">Details</a> · <a href="{{ o.url }}" target="_blank" rel="noopener noreferrer">Open ↗</a></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
 <section>
   <h2>Price history</h2>
   <table class="table">
-    <thead><tr><th>When</th><th>Price</th><th>Type</th></tr></thead>
+    <thead><tr><th>When</th>{% if others %}<th>Source</th>{% endif %}<th>Price</th><th>Type</th></tr></thead>
     <tbody>
-      {% for p in l.price_history|reverse %}
-      <tr><td>{{ p.observed_at|local }}</td><td>{{ p.price|money }}</td><td>{{ p.price_type|price_type }}</td></tr>
+      {% for p, src in history %}
+      <tr><td>{{ p.observed_at|local }}</td>{% if others %}<td>{{ source_labels.get(src, src) }}</td>{% endif %}<td>{{ p.price|money }}</td><td>{{ p.price_type|price_type }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

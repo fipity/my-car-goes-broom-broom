@@ -2,7 +2,7 @@
 
 A self-hosted aggregator for Australian used-car listings, for personal use. It runs your saved searches against several sites, stores every listing in one database with price history, and (from phase 6) estimates each car's market value.
 
-Status: **phase 4 of 8 done.** **Cars24** and **Carsales** are live. Gumtree and Drive block all automated access with bot challenges, so they're marked unavailable. Next: cross-source dedupe (phase 5). See [`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/BRIEF.md`](docs/BRIEF.md) for the full spec.
+Status: **phase 5 of 8 done.** **Cars24** and **Carsales** are live, and the same car on both sites is shown once. Gumtree and Drive block all automated access with bot challenges, so they're marked unavailable. Next: market valuation (phase 6). See [`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/BRIEF.md`](docs/BRIEF.md) for the full spec.
 
 ## Setup
 
@@ -31,7 +31,8 @@ Maintenance commands:
 
 ```sh
 docker compose exec api python -m carscout.cli purge-source demo   # delete one source's data
-docker compose exec api python -m carscout.cli reparse cars24      # re-run the parser over stored raw payloads
+docker compose exec api python -m carscout.cli reparse cars24      # re-run the parser over stored raw payloads (then dedupe)
+docker compose exec api python -m carscout.cli dedupe              # recompute which listings are the same car
 ```
 
 ### When a listing counts as gone
@@ -77,6 +78,31 @@ If a site keeps refusing, or serves a bot-challenge page (Cloudflare, DataDome, 
 
 To remove a source, delete the module and its config entry.
 
+## Duplicates across sites
+
+The same car is often listed on several sites. CarScout groups listings into **cars** (`vehicles` table) and shows each car once in the list, with the other sites' badges and prices under it. The listing page has a "Same car on other listings" table and a price history covering every listing of the car.
+
+How two listings are judged to be the same car (`carscout/dedupe/match.py`):
+1. **VIN**: the same VIN means the same car; two different VINs never are.
+2. **Rego + state**: the same.
+3. **Fuzzy**, between different sites only, and only when both show an odometer reading. Everything known on both sides must agree: make, model, state, body, transmission, fuel, drivetrain and colour. Then odometer (most weight), year, price and variant are scored. Groups use *complete linkage*: a listing joins a car only if it matches **every** listing already in it, so near-misses can't chain together.
+
+Photos aren't compared, because that would mean downloading every image from the sites.
+
+Dedupe runs after every scrape for the makes and models it touched. To recompute everything: `docker compose exec api python -m carscout.cli dedupe`.
+
+### Tuning dedupe
+
+Edit `MatchConfig` in `carscout/dedupe/match.py`, run `cli dedupe`, and check the results with `tests/test_dedupe.py`:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `km_abs`, `km_pct` | 2000, 2% | Odometer readings further apart than the larger of these are never the same car |
+| `price_pct` | 15% | Maximum price difference (sites differ on drive-away vs EGC) |
+| `year_tolerance` | 1 | Build year vs model year |
+| `threshold` | 0.75 | Fuzzy score needed. Lower means more merges and more false matches |
+| `weights` | km .45, year .25, price .15, variant .15 | How the score is made up |
+
 ## Tuning valuation
 
 Comes with phase 6. The valuation logic will live in `carscout/valuation/`, as pure functions with unit tests.
@@ -91,4 +117,4 @@ docker compose run --rm --no-deps -v "$PWD/migrations:/app/migrations" api \
 
 ## Data model
 
-`listings` (the common schema, unique per source and source ID) · `price_history` (one row per price change) · `search_listings` (which search returned which listing, for "gone" detection) · `raw_payloads` (verbatim source data, saved only when it changes) · `saved_searches` · `scrape_runs` (also the job queue) · `sources` · `vehicles` (cross-source dedupe, phase 5) · `valuations` (phase 6) · `postcodes` (radius search, phase 7).
+`listings` (the common schema, unique per source and source ID) · `price_history` (one row per price change) · `search_listings` (which search returned which listing, for "gone" detection) · `raw_payloads` (verbatim source data, saved only when it changes) · `saved_searches` · `scrape_runs` (also the job queue) · `sources` · `vehicles` (one row per physical car; every listing points to one) · `valuations` (phase 6) · `postcodes` (radius search, phase 7).

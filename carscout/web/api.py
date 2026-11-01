@@ -11,9 +11,16 @@ from sqlalchemy.orm import Session
 
 from carscout.core.config import load_sources
 from carscout.core.db import get_session
-from carscout.models import Listing, SavedSearch, ScrapeRun, Source
+from carscout.models import Listing, SavedSearch, ScrapeRun, Source, Vehicle
 from carscout.sources.base import SearchParams
-from carscout.web.queries import ListingFilters, next_scheduled_run, query_listings, source_views
+from carscout.web.queries import (
+    ListingFilters,
+    car_price_history,
+    next_scheduled_run,
+    query_listings,
+    same_car,
+    source_views,
+)
 from carscout.worker.queue import enqueue_search
 
 router = APIRouter(prefix="/api", tags=["api"])
@@ -22,6 +29,17 @@ DB = Annotated[Session, Depends(get_session)]
 
 class Orm(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
+
+class OtherListing(Orm):
+    """The same car listed elsewhere (another site, or a relisting)."""
+    id: int
+    source: str
+    url: str
+    price: int | None
+    price_type: str
+    odometer_km: int | None
+    is_active: bool
 
 
 class ListingOut(Orm):
@@ -54,6 +72,7 @@ class ListingOut(Orm):
     last_seen: datetime
     is_active: bool
     vehicle_id: int | None
+    same_car: list[OtherListing] = []
 
 
 class PricePoint(Orm):
@@ -62,9 +81,16 @@ class PricePoint(Orm):
     observed_at: datetime
 
 
+class CarPricePoint(PricePoint):
+    source: str
+
+
 class ListingDetailOut(ListingOut):
     description: str | None
     price_history: list[PricePoint]
+    car_price_history: list[CarPricePoint] = []  # every listing of this car, newest first
+    match_method: str | None = None  # vin | rego | fuzzy | single
+    match_confidence: float | None = None
 
 
 class ListingPage(BaseModel):
@@ -113,8 +139,11 @@ class SourcePatch(BaseModel):
 @router.get("/listings", response_model=ListingPage)
 def list_listings(db: DB, f: Annotated[ListingFilters, Query()]) -> Any:
     items, total = query_listings(db, f)
-    return ListingPage(total=total, page=f.page, per_page=f.per_page,
-                       items=[ListingOut.model_validate(i) for i in items])
+    others = same_car(db, items)
+    return ListingPage(total=total, page=f.page, per_page=f.per_page, items=[
+        ListingOut.model_validate(i).model_copy(update={
+            "same_car": [OtherListing.model_validate(o) for o in others.get(i.id, [])]})
+        for i in items])
 
 
 @router.get("/listings/{listing_id}", response_model=ListingDetailOut)
@@ -122,7 +151,16 @@ def get_listing(listing_id: int, db: DB) -> Any:
     listing = db.get(Listing, listing_id)
     if not listing:
         raise HTTPException(404, "listing not found")
-    return listing
+    vehicle = db.get(Vehicle, listing.vehicle_id) if listing.vehicle_id else None
+    out = ListingDetailOut.model_validate(listing)
+    return out.model_copy(update={
+        "same_car": [OtherListing.model_validate(o) for o in same_car(db, [listing]).get(listing.id, [])],
+        "car_price_history": [CarPricePoint(price=p.price, price_type=p.price_type,
+                                            observed_at=p.observed_at, source=src)
+                              for p, src in car_price_history(db, listing)],
+        "match_method": vehicle.match_method if vehicle else None,
+        "match_confidence": vehicle.confidence if vehicle else None,
+    })
 
 
 @router.get("/searches", response_model=list[SearchOut])

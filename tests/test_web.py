@@ -78,6 +78,42 @@ async def test_pages_render(client, sm):
     await execute_run(sm, run_id)
 
     html = client.get("/?sort=price_desc&price_max=abc").text  # junk number ignored
-    assert "5 listings" in html and "Mazda 3" in html
+    assert "5 cars" in html and "Mazda 3" in html
     assert client.get("/listings/1").status_code == 200
     assert client.get("/listings/424242").status_code == 404
+
+
+def test_same_car_shown_once_with_both_sources(client, sm):
+    from carscout.dedupe.store import dedupe
+    from carscout.models import Listing, PriceHistory
+
+    def listing(source, sid, price):
+        return Listing(source=source, source_listing_id=sid, url=f"https://{source}.test/{sid}",
+                       title="2022 Toyota Corolla Ascent Sport Hybrid", make="Toyota", model="Corolla",
+                       variant="Ascent Sport Hybrid", year=2022, odometer_km=50735, price=price,
+                       price_type="egc", state="VIC", images=[], is_active=True)
+
+    with sm.begin() as s:
+        a, b = listing("cars24", "1", 26190), listing("carsales", "OAG-AD-1", 26990)
+        a.vin = "JTNKE3BE803503547"
+        s.add_all([a, b])
+        s.flush()
+        s.add_all([PriceHistory(listing_id=a.id, price=26190, price_type="egc"),
+                   PriceHistory(listing_id=b.id, price=26990, price_type="egc")])
+    with sm.begin() as s:
+        dedupe(s)
+
+    page = client.get("/api/listings").json()
+    assert page["total"] == 1 and len(page["items"]) == 1
+    item = page["items"][0]
+    assert item["source"] == "cars24"  # canonical: has the VIN
+    assert [o["source"] for o in item["same_car"]] == ["carsales"]
+    detail = client.get(f"/api/listings/{item['id']}").json()
+    assert detail["match_method"] == "fuzzy" and len(detail["car_price_history"]) == 2
+
+    html = client.get("/").text
+    assert "1 car " in html and "Also on" in html
+    only_carsales = client.get("/api/listings?source=carsales").json()["items"]
+    assert [i["source"] for i in only_carsales] == ["carsales"]  # filter picks that site's listing
+    detail_html = client.get(f"/listings/{item['id']}").text
+    assert "Same car on other listings" in detail_html and "carsales.test/OAG-AD-1" in detail_html

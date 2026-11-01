@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from carscout.core.config import Settings, get_settings, load_sources
 from carscout.core.logging import get_logger
+from carscout.dedupe.store import dedupe
 from carscout.models import (
     Listing,
     PriceHistory,
@@ -209,6 +210,7 @@ async def execute_run(
     status, error = RunStatus.OK, None
     found = new = updated = gone = 0
     truncated = False
+    blocks: set[tuple[str | None, str | None]] = set()  # (make, model) touched, for dedupe
     http: PoliteClient | None = None
     run_started = datetime.now(UTC)
 
@@ -225,6 +227,8 @@ async def execute_run(
                 result, listing_id = store_listing(s, plugin, raw, now)
                 if search_id is not None:
                     link_search(s, search_id, listing_id, run_id, now)
+                stored = s.get(Listing, listing_id)
+                blocks.add((stored.make, stored.model))
             found += 1
             new += result == "new"
             updated += result == "updated"
@@ -260,6 +264,12 @@ async def execute_run(
             src.status = SourceStatus.OK if status == RunStatus.OK else SourceStatus.DEGRADED
             if status == RunStatus.OK:
                 src.last_ok_at = now
+    if blocks:
+        try:
+            with sm.begin() as s:
+                dedupe(s, blocks)
+        except Exception:  # dedupe trouble must not turn a good scrape into a failure
+            bound.exception("dedupe_failed")
     bound.info("run_finished", status=status, found=found, new=new, updated=updated,
                gone=gone, truncated=truncated, requests=requests, error=error)
     return status

@@ -132,3 +132,5 @@ legend { font-size: .8rem; color: var(--muted); }
 .strip { display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .5rem; scroll-snap-type: x mandatory; }
 .strip a { flex: 0 0 auto; scroll-snap-align: start; }
 .strip img { height: 120px; width: auto; border-radius: 8px; display: block; background: var(--surface-2); }
+
+.also { margin: .15rem 0; display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; }

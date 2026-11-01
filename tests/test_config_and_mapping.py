@@ -52,3 +52,12 @@ def test_model_aliases():
 def test_state():
     assert normalise_state("Victoria") == "VIC" and normalise_state("nsw") == "NSW"
     assert normalise_state("Narnia") is None
+
+
+def test_variant_badges_uppercased():
+    from carscout.normalise.mapping import normalise_variant
+
+    assert normalise_variant("Zr Hybrid") == "ZR Hybrid"
+    assert normalise_variant("Gxl") == "GXL" and normalise_variant("sr5 Hi-Rider") == "SR5 Hi-Rider"
+    assert normalise_variant("Ascent Sport") == "Ascent Sport"  # real words untouched
+    assert normalise_variant("C350 e") == "C350 e"

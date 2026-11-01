@@ -3,6 +3,7 @@
   purge-source <name>   delete every listing, raw payload and run from one source (e.g. demo)
   reparse <name>        re-run a source's parser over its stored raw payloads (no network);
                         use after changing parse() or the normalise/data/*.yaml tables
+  dedupe                recompute which listings are the same car, across all sources
 """
 from __future__ import annotations
 
@@ -24,6 +25,9 @@ def purge_source(name: str) -> None:
         if src:
             src.status, src.last_error, src.last_count = SourceStatus.NEVER_RUN, None, None
             src.last_run_at = src.last_ok_at = None
+        from carscout.dedupe.store import dedupe
+
+        dedupe(s)  # drops vehicles that only had this source's listings
     print(f"Deleted {n} listings, {r} raw payloads and {runs} runs from '{name}'.")
 
 
@@ -65,7 +69,15 @@ def main(argv: list[str]) -> int:
         return 0
     if len(argv) == 2 and argv[0] == "reparse":
         done, changed = reparse(argv[1])
-        print(f"Re-parsed {done} listings from '{argv[1]}'; {changed} changed.")
+        print(f"Re-parsed {done} listings from '{argv[1]}'; {changed} changed. Re-running dedupe...")
+        argv = ["dedupe"]
+    if argv == ["dedupe"]:
+        from carscout.dedupe.store import dedupe
+
+        with get_sessionmaker().begin() as s:
+            st = dedupe(s)
+        print(f"{st.get('listings', 0)} listings are {st.get('vehicles', 0)} cars; "
+              f"{st.get('multi', 0)} cars are listed more than once.")
         return 0
     print(__doc__)
     return 2

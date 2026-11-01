@@ -93,7 +93,7 @@ def _fingerprint(card: dict[str, Any]) -> tuple[Any, ...]:
 
 class Plugin(SourcePlugin):
     name = "cars24"
-    parser_version = 2  # 2: model pattern rules (Mercedes "C200" -> "C-Class")
+    parser_version = 3  # 2: model pattern rules (Mercedes "C200" -> "C-Class"); 3: badge case
 
     # -- search ----------------------------------------------------------------------------
     def search_paths(self, params: SearchParams) -> list[str]:

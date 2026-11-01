@@ -10,8 +10,8 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
 | 2 | Compose skeleton, DB schema, FastAPI, basic UI | ✅ Done 2026-11-01 |
 | 3 | First scraper + normalisation + storage | ✅ Done 2026-11-01 (Cars24) |
 | 4 | Remaining scrapers, one at a time | ✅ Done 2026-11-01: Carsales live; Gumtree and Drive unavailable (bot protection) |
-| 5 | Dedupe + price history | ⏭ Next (price history already recorded since phase 2) |
-| 6 | Valuation module + tests | |
+| 5 | Dedupe + price history | ✅ Done 2026-11-01 |
+| 6 | Valuation module + tests | ⏭ Next |
 | 7 | Full UI: filters, detail, saved-search alerts, sources page | |
 | 8 | Facebook Marketplace (experimental) | |
 
@@ -93,3 +93,24 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
 - **Playwright** was not added to the worker image (~2 GB): neither site works with it.
 - `PoliteClient` now recognises Peakhour challenges, so it stops at the first one instead of retrying the 403.
 - **To revisit:** re-run the probe now and then; protection can change. If either site opens up, it needs a parser written from real pages first.
+
+## Phase 5 notes
+
+- **Matching:** `carscout/dedupe/match.py` (pure). VIN (exact, and different VINs veto), then rego + state, then a fuzzy match across sources.
+  - The fuzzy match needs an odometer reading on both sides, and every field known on both sides must agree: make, model, state, body, transmission, fuel, drivetrain, colour.
+  - It then scores odometer .45, year .25, price .15, variant .15, against a threshold of .75. Tolerances: km max(2000, 2%), price 15%, year ±1. Tunable via `MatchConfig`; the README has a table.
+- **Clustering:** complete linkage (no chaining). Candidate pairs come from VIN/rego indexes plus an odometer sweep, not all n² pairs.
+- **Storage:** `carscout/dedupe/store.py`.
+  - Every listing gets a `vehicles` row, with `match_method` (vin/rego/fuzzy/single), `confidence` and `canonical_listing_id` (active, then most complete, then freshest).
+  - Vehicle ids stay stable across recomputes, and orphan vehicles are deleted. A pg advisory lock serialises runs.
+- **When it runs:** after every scrape for the (make, model) blocks the run touched, after `purge-source` and `reparse`, and via `cli dedupe` for everything.
+- **UI/API:**
+  - The list shows one card per car, counted as cars; the face is the canonical listing, or the matching one when filtered by source. Under it: "Also on" badges with each site's price.
+  - The listing page has a "Same car on other listings" table (with how it was matched) and a price history covering every listing of the car.
+  - The API adds `same_car`, `car_price_history`, `match_method` and `match_confidence`.
+- **Live result:** "Corolla, any year, all states" on both sources gave 171 listings = 170 cars.
+  - The one cross-site match is genuine: a 2021 Corolla ZR Hybrid in QLD, 62,994 km, $28,490 on both Cars24 and Carsales. Cars24 lists its stock on Carsales.
+  - Test-search change: search 2 now has sources `{cars24, carsales}` (it was Cars24-only).
+- **Normalisation:** `normalise_variant` upper-cases badges ("Zr" → "ZR"). Parser versions bumped: cars24 v3, carsales v2. Both re-parsed.
+- **Not done (by design):** photo comparison, which would mean downloading images from the sites' CDNs.
+- **Phase 6 note:** the valuation should use one listing per vehicle (the canonical one), so a car listed twice doesn't count as two comparables.

@@ -15,14 +15,16 @@ from sqlalchemy.orm import Session
 
 from carscout.core.config import get_settings, load_sources
 from carscout.core.db import get_session
-from carscout.models import Listing, SavedSearch, ScrapeRun, Source
+from carscout.models import Listing, SavedSearch, ScrapeRun, Source, Vehicle
 from carscout.sources.base import SearchParams
 from carscout.web.queries import (
     SORTS,
     ListingFilters,
+    car_price_history,
     facet_values,
     next_scheduled_run,
     query_listings,
+    same_car,
     source_views,
 )
 from carscout.worker.queue import enqueue_search
@@ -94,7 +96,7 @@ def listings_page(request: Request, db: DB) -> HTMLResponse:
     pages = max(1, -(-total // f.per_page))
     base = {k: v for k, v in request.query_params.items() if k not in ("page", "msg") and v}
     return _render(request, "listings.html", items=items, total=total, f=f, pages=pages,
-                   facets=facet_values(db), sorts=list(SORTS),
+                   facets=facet_values(db), sorts=list(SORTS), others=same_car(db, items),
                    page_url=lambda p: "/?" + urlencode({**base, "page": p}))
 
 
@@ -103,7 +105,10 @@ def listing_page(listing_id: int, request: Request, db: DB) -> HTMLResponse:
     listing = db.get(Listing, listing_id)
     if not listing:
         raise HTTPException(404, "Listing not found")
-    return _render(request, "listing.html", l=listing)
+    vehicle = db.get(Vehicle, listing.vehicle_id) if listing.vehicle_id else None
+    return _render(request, "listing.html", l=listing, vehicle=vehicle,
+                   others=same_car(db, [listing]).get(listing.id, []),
+                   history=car_price_history(db, listing))
 
 
 @router.get("/searches", response_class=HTMLResponse)

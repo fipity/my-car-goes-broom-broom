@@ -7,11 +7,11 @@ from typing import Any
 
 from apscheduler.triggers.cron import CronTrigger
 from pydantic import BaseModel, Field
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, case, func, select
 from sqlalchemy.orm import Session
 
 from carscout.core.config import get_settings, load_sources
-from carscout.models import Listing, RunStatus, ScrapeRun, Source
+from carscout.models import Listing, PriceHistory, RunStatus, ScrapeRun, Source, Vehicle
 from carscout.worker.queue import sync_sources
 
 SORTS = {
@@ -83,12 +83,50 @@ def _apply(stmt: Select[Any], f: ListingFilters) -> Select[Any]:
     return stmt
 
 
+_CAR = func.coalesce(Listing.vehicle_id, -Listing.id)  # listings not deduped yet count alone
+
+
 def query_listings(session: Session, f: ListingFilters) -> tuple[list[Listing], int]:
-    total = session.scalar(_apply(select(func.count(Listing.id)), f)) or 0
+    """One row per car: of each car's listings that pass the filters, the canonical one if it
+    does, else the freshest active one. Total counts cars, not listings."""
+    total = session.scalar(_apply(select(func.count(func.distinct(_CAR))), f)) or 0
+    ranked = (
+        _apply(select(
+            Listing.id.label("id"),
+            func.row_number().over(
+                partition_by=_CAR,
+                order_by=(case((Listing.id == Vehicle.canonical_listing_id, 0), else_=1),
+                          Listing.is_active.desc(), Listing.last_seen.desc(), Listing.id.desc()),
+            ).label("rn"),
+        ).outerjoin(Vehicle, Vehicle.id == Listing.vehicle_id), f)
+    ).subquery()
     order = SORTS.get(f.sort, SORTS["newest"])
-    stmt = _apply(select(Listing), f).order_by(*order, Listing.id.desc())
+    stmt = (select(Listing).join(ranked, ranked.c.id == Listing.id).where(ranked.c.rn == 1)
+            .order_by(*order, Listing.id.desc()))
     items = list(session.scalars(stmt.limit(f.per_page).offset((f.page - 1) * f.per_page)))
     return items, total
+
+
+def same_car(session: Session, listings: list[Listing]) -> dict[int, list[Listing]]:
+    """listing id -> the *other* listings of the same car (any source, active first)."""
+    vids = {l.vehicle_id for l in listings if l.vehicle_id is not None}
+    if not vids:
+        return {}
+    rows = list(session.scalars(
+        select(Listing).where(Listing.vehicle_id.in_(vids))
+        .order_by(Listing.is_active.desc(), Listing.source, Listing.id)
+    ))
+    return {l.id: [o for o in rows if o.vehicle_id == l.vehicle_id and o.id != l.id] for l in listings}
+
+
+def car_price_history(session: Session, listing: Listing) -> list[tuple[PriceHistory, str]]:
+    """Price changes of every listing of this car, newest first, with the source of each."""
+    ids = [listing.id] + [o.id for o in same_car(session, [listing]).get(listing.id, [])]
+    rows = session.execute(
+        select(PriceHistory, Listing.source).join(Listing, Listing.id == PriceHistory.listing_id)
+        .where(PriceHistory.listing_id.in_(ids)).order_by(PriceHistory.observed_at.desc())
+    ).all()
+    return [(p, src) for p, src in rows]
 
 
 def facet_values(session: Session) -> dict[str, list[str]]:
