@@ -36,6 +36,7 @@ CHALLENGE_MARKERS = (
     "_incapsula_resource",           # Imperva
     "pardon our interruption",       # Imperva / Distil
     "<title>access denied",          # Akamai
+    "peakhour-challenge",            # Peakhour (Gumtree)
 )
 
 
@@ -49,6 +50,8 @@ def detect_challenge(resp: httpx.Response) -> str | None:
             return marker
     if resp.headers.get("cf-mitigated") == "challenge":
         return "cf-mitigated"
+    if resp.status_code == 403 and "peakhour_visit=" in resp.headers.get("set-cookie", "").lower():
+        return "peakhour"
     if resp.headers.get("x-datadome") and resp.status_code in (401, 403):
         return "datadome"
     return None

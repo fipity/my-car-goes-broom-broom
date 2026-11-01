@@ -60,6 +60,7 @@ class SourceConfig(BaseModel):
     enabled: bool = True
     implemented: bool = True
     use_browser: bool = False
+    unavailable: str | None = None  # why a source can't be scraped (shown on the Sources page)
     delay: float
     jitter: float
     concurrency: int
@@ -88,6 +89,7 @@ def load_sources(settings: Settings | None = None) -> dict[str, SourceConfig]:
             enabled=enabled,
             implemented=entry.get("implemented", True),
             use_browser=entry.get("use_browser", False),
+            unavailable=entry.get("unavailable"),
             delay=entry.get("delay", settings.default_delay_seconds),
             jitter=entry.get("jitter", settings.default_jitter_seconds),
             concurrency=entry.get("concurrency", settings.default_concurrency),

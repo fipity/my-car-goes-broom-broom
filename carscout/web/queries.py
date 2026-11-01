@@ -113,6 +113,7 @@ class SourceView:
     last_error: str | None
     use_browser: bool
     queued: int
+    note: str | None = None
 
 
 def source_views(session: Session) -> list[SourceView]:
@@ -130,7 +131,9 @@ def source_views(session: Session) -> list[SourceView]:
     out = []
     for name, cfg in configs.items():
         row = rows[name]
-        if not cfg.implemented:
+        if not cfg.implemented and cfg.unavailable:
+            state, label = "not_built", "Unavailable"
+        elif not cfg.implemented:
             state, label = "not_built", "Not built yet"
         elif not cfg.enabled:
             state, label = "disabled_config", "Disabled in config"
@@ -144,6 +147,7 @@ def source_views(session: Session) -> list[SourceView]:
             toggle_allowed=cfg.implemented and cfg.enabled, enabled=row.enabled,
             last_run_at=row.last_run_at, last_ok_at=row.last_ok_at, last_count=row.last_count,
             last_error=row.last_error, use_browser=cfg.use_browser, queued=queued.get(name, 0),
+            note=cfg.unavailable,
         ))
     return out
 

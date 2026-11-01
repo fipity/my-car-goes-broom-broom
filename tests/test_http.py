@@ -105,3 +105,13 @@ async def test_robots_behind_challenge_is_blocked():
     c, _ = make_client(handler)
     with pytest.raises(SourceBlocked, match="robots.txt"):
         await c.get("https://x.test/a")
+
+
+def test_peakhour_challenge_detected():
+    from carscout.sources.http import detect_challenge
+
+    body = "<script>(function(){ var h={'Peakhour-Challenge':x} })()</script>"
+    assert detect_challenge(httpx.Response(403, text=body, headers={"content-type": "text/html"}))
+    plain = httpx.Response(403, text="<script>obfuscated()</script>",
+                           headers={"content-type": "text/html", "set-cookie": "PEAKHOUR_VISIT=abc; Path=/"})
+    assert detect_challenge(plain) == "peakhour"

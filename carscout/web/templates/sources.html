@@ -15,6 +15,7 @@
         Last run {{ s.last_run_at|ago }}{% if s.last_count is not none %} · {{ s.last_count }} found{% endif %}
         {% if s.last_ok_at and s.state == 'degraded' %} · last OK {{ s.last_ok_at|ago }}{% endif %}
       </p>
+      {% if s.note %}<p class="muted small">{{ s.note }}</p>{% endif %}
       {% if s.last_error %}<p class="error small">{{ s.last_error }}</p>{% endif %}
     </div>
     {% if s.toggle_allowed %}
@@ -27,5 +28,5 @@
   </li>
   {% endfor %}
 </ul>
-<p class="muted small">Sources marked “Disabled in config” or “Not built yet” are controlled by <code>config/sources.yaml</code>.</p>
+<p class="muted small">Sources marked “Disabled in config”, “Unavailable” or “Not built yet” are controlled by <code>config/sources.yaml</code>.</p>
 {% endblock %}

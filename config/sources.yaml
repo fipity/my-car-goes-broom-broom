@@ -25,8 +25,10 @@ sources:
   gumtree:
     label: Gumtree
     enabled: true
-    use_browser: true
-    implemented: false   # phase 4
+    implemented: false
+    unavailable: >-
+      Gumtree serves a Peakhour bot challenge (HTTP 403) to every request, including headless
+      Chromium (checked 2026-11-01). CarScout doesn't get around bot protection.
 
   cars24:
     label: Cars24
@@ -40,8 +42,10 @@ sources:
   drive:
     label: Drive
     enabled: true
-    use_browser: true
-    implemented: false   # phase 4
+    implemented: false
+    unavailable: >-
+      Drive serves a Cloudflare Turnstile challenge to every request, even robots.txt, including
+      headless Chromium (checked 2026-11-01). CarScout doesn't get around bot protection.
 
   facebook:
     label: Facebook Marketplace

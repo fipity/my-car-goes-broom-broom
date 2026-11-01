@@ -9,8 +9,8 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
 | 1 | Plan & architecture | ✅ Approved 2026-11-01 |
 | 2 | Compose skeleton, DB schema, FastAPI, basic UI | ✅ Done 2026-11-01 |
 | 3 | First scraper + normalisation + storage | ✅ Done 2026-11-01 (Cars24) |
-| 4 | Remaining scrapers, one at a time | 🔄 In progress: Carsales ✅, Gumtree, Drive |
-| 5 | Dedupe + price history | (price history already recorded since phase 2) |
+| 4 | Remaining scrapers, one at a time | ✅ Done 2026-11-01: Carsales live; Gumtree and Drive unavailable (bot protection) |
+| 5 | Dedupe + price history | ⏭ Next (price history already recorded since phase 2) |
 | 6 | Valuation module + tests | |
 | 7 | Full UI: filters, detail, saved-search alerts, sources page | |
 | 8 | Facebook Marketplace (experimental) | |
@@ -85,3 +85,11 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
   - `specs.yaml` gained the Carsales drivetrain shorthands (F, R, i-ACTIV AWD, GR-FOUR).
 - **Robots:** groups now match on the UA product token ("Mozilla"), per RFC 9309, not on any substring.
 - **Phase 6 idea:** the JSON-LD name carries the model series ("KF Series"), and it's kept in the raw payload. It would be a good comparable key if added as a column.
+
+### Gumtree and Drive (checked 2026-11-01): unavailable
+- **Gumtree:** every page returns a **Peakhour** JS challenge (HTTP 403, `PEAKHOUR_VISIT` cookie), to both plain HTTP and stock headless Chromium (Playwright 1.49, which reports "HeadlessChrome").
+- **Drive:** a **Cloudflare Turnstile** challenge (`cf-mitigated: challenge`) on every URL, robots.txt included, again for both plain HTTP and headless Chromium.
+- The only remaining options are disguising the browser (UA or fingerprint changes, stealth plugins) or solving challenges. Both are excluded by the no-evasion rule, so both sources are `implemented: false` with an `unavailable:` note, which the Sources page shows.
+- **Playwright** was not added to the worker image (~2 GB): neither site works with it.
+- `PoliteClient` now recognises Peakhour challenges, so it stops at the first one instead of retrying the 403.
+- **To revisit:** re-run the probe now and then; protection can change. If either site opens up, it needs a parser written from real pages first.
