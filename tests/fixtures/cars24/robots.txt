@@ -1,0 +1,141 @@
+# ============================================================
+# cars24.com.au — Robots.txt
+# Goal: Maximum SEO + AI visibility
+# ============================================================
+
+# ----------------------------
+# Sitemaps
+# ----------------------------
+Sitemap: https://www.cars24.com.au/sitemap.xml
+Sitemap: https://www.cars24.com.au/sitemaps/buy-sitemap.xml
+Sitemap: https://www.cars24.com.au/sitemaps/sell-sitemap.xml
+Sitemap: https://www.cars24.com.au/sitemaps/blog-sitemap.xml
+Sitemap: https://www.cars24.com.au/sitemaps/services-sitemap.xml
+Sitemap: https://www.cars24.com.au/sitemaps/pages-sitemap.xml
+Sitemap: https://www.cars24.com.au/blog/page-sitemap.xml
+Sitemap: https://www.cars24.com.au/blog/car-news-sitemap.xml
+Sitemap: https://www.cars24.com.au/blog/car-reviews-sitemap.xml
+Sitemap: https://www.cars24.com.au/blog/car-advice-sitemap.xml
+Sitemap: https://www.cars24.com.au/blog/car-guide-sitemap.xml
+Sitemap: https://www.cars24.com.au/blog/web-story-sitemap.xml
+
+
+
+# ----------------------------
+# Search Engines
+# ----------------------------
+
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: bingbot
+Allow: /
+
+User-agent: msnbot
+Allow: /
+
+User-agent: msnbot-media
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+
+# ----------------------------
+# AI Search / Discovery
+# ----------------------------
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: AzureAI-SearchBot
+Allow: /
+
+User-agent: Amzn-SearchBot
+Allow: /
+
+User-agent: meta-webindexer
+Allow: /
+
+
+# ----------------------------
+# AI User Agents
+# ----------------------------
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ChatGPT Agent
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+
+User-agent: Google-NotebookLM
+Allow: /
+
+User-agent: Gemini-Deep-Research
+Allow: /
+
+
+# ----------------------------
+# AI Training
+# ----------------------------
+User-agent: GPTBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
+User-agent: PetalBot
+Allow: /
+
+
+
+# ----------------------------
+# Global Defaults
+# ----------------------------
+User-agent: *
+Allow: /
+
+Disallow: /*?sf=
+Disallow: /*?utm_
+Disallow: /api/
+Disallow: /ajax/
+Disallow: /*?f=
+
+Crawl-delay: 2
+

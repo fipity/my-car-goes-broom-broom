@@ -108,6 +108,7 @@ class ScrapeRun(Base):
     new: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     updated: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     requests: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    gone: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     error: Mapped[str | None] = mapped_column(Text)
 
     saved_search: Mapped[SavedSearch | None] = relationship(back_populates="runs")
@@ -200,6 +201,26 @@ class Listing(Base):
         back_populates="listing", order_by="PriceHistory.observed_at", passive_deletes=True
     )
     valuation: Mapped[Valuation | None] = relationship(back_populates="listing", uselist=False)
+
+
+class SearchListing(Base):
+    """Which saved search returned which listing, and on which run last. When a complete run
+    of a search no longer returns a listing it used to, that listing is checked and marked
+    inactive if it's gone (see worker/runner.py)."""
+
+    __tablename__ = "search_listings"
+
+    saved_search_id: Mapped[int] = mapped_column(
+        ForeignKey("saved_searches.id", ondelete="CASCADE"), primary_key=True
+    )
+    listing_id: Mapped[int] = mapped_column(
+        ForeignKey("listings.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    first_seen: Mapped[datetime] = _now()
+    last_seen: Mapped[datetime] = _now()
+    last_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("scrape_runs.id", ondelete="SET NULL")
+    )
 
 
 class PriceHistory(Base):

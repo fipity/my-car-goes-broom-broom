@@ -28,7 +28,10 @@ sources:
     label: Cars24
     enabled: true
     delay: 3             # robots.txt asks for Crawl-delay: 2
-    implemented: false   # phase 3
+    jitter: 2
+    options:
+      max_pages: 15            # 20 cars a page; stops early (and skips the gone-check) beyond this
+      detail_max_age_days: 7   # re-fetch a car's detail page at least this often
 
   drive:
     label: Drive

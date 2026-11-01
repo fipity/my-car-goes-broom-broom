@@ -1,7 +1,8 @@
 """PoliteClient: the only way plugins talk to the network.
 
 - one request at a time per source by default, minimum delay plus random jitter between them
-- robots.txt is fetched once per host per run and honoured
+- robots.txt is fetched once per host per run and honoured (RFC 9309 rules, see robots.py),
+  and its Crawl-delay raises the minimum delay if it asks for more than the config does
 - 429/403/5xx are retried with exponential backoff (honouring Retry-After); if they persist,
   the source is reported blocked/unavailable instead of hammering it
 - challenge pages (Cloudflare, DataDome, PerimeterX, Imperva) are detected and reported.
@@ -15,11 +16,11 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 from urllib.parse import urlsplit
-from urllib.robotparser import RobotFileParser
 
 import httpx
 
 from carscout.core.logging import get_logger
+from carscout.sources.robots import Robots
 
 log = get_logger(__name__)
 
@@ -85,7 +86,7 @@ class PoliteClient:
         self._sem = asyncio.Semaphore(max(1, concurrency))
         self._lock = asyncio.Lock()
         self._next_at = 0.0
-        self._robots: dict[str, RobotFileParser | None] = {}
+        self._robots: dict[str, Robots] = {}
         self._client = httpx.AsyncClient(
             transport=transport,
             timeout=timeout,
@@ -134,22 +135,22 @@ class PoliteClient:
                 resp = await self._send(robots_url)
             except httpx.TransportError as e:
                 log.warning("robots_unreachable", source=self.source, url=robots_url, error=str(e))
-                self._robots[host] = None  # unreachable: we'll find out on the real request
+                self._robots[host] = Robots.allowing_all()  # we'll find out on the real request
                 return
             if detect_challenge(resp):
                 raise SourceBlocked(f"robots.txt is behind bot protection (HTTP {resp.status_code})")
             if resp.status_code in (401, 403):
-                parser = RobotFileParser()
-                parser.disallow_all = True  # standard convention for 401/403
-                self._robots[host] = parser
+                robots = Robots.disallowing_all()  # standard convention for 401/403
             elif resp.status_code >= 400:
-                self._robots[host] = None  # no robots.txt: everything allowed
+                robots = Robots.allowing_all()  # no robots.txt: everything allowed
             else:
-                parser = RobotFileParser()
-                parser.parse(resp.text.splitlines())
-                self._robots[host] = parser
-        parser = self._robots[host]
-        if parser is not None and not parser.can_fetch(self.user_agent, url):
+                robots = Robots.parse(resp.text)
+                crawl_delay = robots.crawl_delay(self.user_agent)
+                if crawl_delay and crawl_delay > self.delay:
+                    log.info("robots_crawl_delay", source=self.source, delay=crawl_delay)
+                    self.delay = min(crawl_delay, 60.0)
+            self._robots[host] = robots
+        if not self._robots[host].can_fetch(self.user_agent, url):
             raise RobotsDisallowed(f"robots.txt disallows {parts.path}")
 
     def _backoff(self, attempt: int, resp: httpx.Response | None) -> float:

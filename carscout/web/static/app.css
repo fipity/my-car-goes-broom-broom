@@ -127,3 +127,8 @@ legend { font-size: .8rem; color: var(--muted); }
   .grid { grid-template-columns: 1fr; }
   .brand { font-size: 1rem; }
 }
+
+/* photo strip on the listing page */
+.strip { display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .5rem; scroll-snap-type: x mandatory; }
+.strip a { flex: 0 0 auto; scroll-snap-align: start; }
+.strip img { height: 120px; width: auto; border-radius: 8px; display: block; background: var(--surface-2); }

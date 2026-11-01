@@ -8,8 +8,8 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
 |---|---|---|
 | 1 | Plan & architecture | ✅ Approved 2026-11-01 |
 | 2 | Compose skeleton, DB schema, FastAPI, basic UI | ✅ Done 2026-11-01 |
-| 3 | First scraper + normalisation + storage | ⏭ Next |
-| 4 | Remaining scrapers, one at a time | |
+| 3 | First scraper + normalisation + storage | ✅ Done 2026-11-01 (Cars24) |
+| 4 | Remaining scrapers, one at a time | ⏭ Next (Carsales first) |
 | 5 | Dedupe + price history | (price history already recorded since phase 2) |
 | 6 | Valuation module + tests | |
 | 7 | Full UI: filters, detail, saved-search alerts, sources page | |
@@ -39,3 +39,29 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
   - Playwright isn't installed in the worker image yet (phase 4).
   - The junk filter (`excluded_reason`) comes in phase 6.
 - 23 tests: config, normalisation, PoliteClient (retry, backoff, robots, challenge detection), runner (storage, price history, raw dedupe, isolation) and API/pages.
+
+## Phase 3 notes
+
+- **Cars24 is live** (`carscout/sources/cars24.py`), confirmed against the real site on 2026-11-01:
+  - The first run of "Toyota Corolla, all states" stored 21 listings from 24 requests in 93s. Every listing has VIN, suburb, colour, drivetrain, engine and body type.
+  - The repeat run took 3 requests and 7s, because detail pages are reused while price, km and status are unchanged (up to `detail_max_age_days`).
+  - Search pages: RSC flight data. Detail pages: `window.__PRELOADED_STATE__`. Sold cars return HTTP **410**.
+  - robots.txt disallows `?f=`/`?sf=`/`/api/`, so filters are applied client-side with `sources/filters.py`, first on the card (to skip detail fetches) and again after the detail page.
+  - A model slug that 404s falls back to the make page, then the all-cars page.
+- **Robots fix:** `sources/robots.py` implements RFC 9309. The stdlib `RobotFileParser` used in phase 2 applied the first matching rule, so Cars24's leading `Allow: /` would have allowed `/api/`. Crawl-delay now raises the per-source delay.
+- **Gone detection:** the `search_listings` table plus `SourcePlugin.confirm_gone()`.
+  - It only runs after complete runs: not degraded or failed, not stopped by `max_results`, not `plugin.truncated`.
+  - It checks at most 50 listings per run. `scrape_runs.gone` counts them, and the UI shows it under Searches.
+  - Phase 7 note: if saved searches become editable, clear that search's `search_listings` rows on edit. Otherwise the default `confirm_gone` (which trusts the search) would mark listings that no longer match as gone. Cars24 is safe either way because it checks each URL.
+- **Normalisation:** `normalise/data/specs.yaml` covers body, transmission, fuel and drivetrain. Parsed strings are trimmed to their column lengths before saving. Fixed a LandCruiser/Prado alias clash.
+- New plugin hooks:
+  - `self.previous(id)`: the last stored payload.
+  - `self.truncated`: set when the plugin stops paging early.
+  - `SourceChanged`: raised when the layout changes; marks the source degraded with a clear message.
+- `python -m carscout.cli reparse <source>` re-parses stored raw payloads. It doesn't add price history.
+- UI: a "Gone" column in recent runs, an "Include sold" filter, and a photo strip on the listing page.
+- 46 tests (23 new): robots, Cars24 against gzipped real-page fixtures (`tests/fixtures/cars24/`, staff emails and signed URLs scrubbed), gone detection, trimming, previous-payload lookup and reparse.
+- **For phase 4 / later:**
+  - Cars24 lists Mercedes models as "C200"/"A250" (the sitemap has `mercedes-benz-c200`), whereas other sites use "C-Class". Map them in models.yaml when Carsales arrives, for dedupe and valuation.
+  - Cars24 gives no postcode. Fill it from suburb + state using the `postcodes` table (phase 7).
+  - Next up: Carsales. In phase 1 it served `__NEXT_DATA__` and JSON-LD with DataDome passed; re-check live first.

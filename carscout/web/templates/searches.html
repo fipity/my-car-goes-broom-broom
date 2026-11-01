@@ -54,13 +54,13 @@
 {% if runs %}
 <div class="table-wrap">
 <table class="table">
-  <thead><tr><th>Source</th><th>Status</th><th>Found</th><th>New</th><th>When</th><th>Detail</th></tr></thead>
+  <thead><tr><th>Source</th><th>Status</th><th>Found</th><th>New</th><th title="Listings this search no longer returns that were confirmed sold/removed">Gone</th><th>When</th><th>Detail</th></tr></thead>
   <tbody>
     {% for r in runs %}
     <tr>
       <td>{{ source_badge(r.source, source_labels) }}</td>
       <td>{{ state_pill(r.status, r.status|capitalize) }}</td>
-      <td>{{ r.found }}</td><td>{{ r.new }}</td>
+      <td>{{ r.found }}</td><td>{{ r.new }}</td><td>{{ r.gone or "" }}</td>
       <td title="{{ r.queued_at|local }}">{{ (r.finished_at or r.started_at or r.queued_at)|ago }}<br><span class="muted small">{{ r.trigger }}</span></td>
       <td class="small">{{ r.error or (r.saved_search.name if r.saved_search else '') }}</td>
     </tr>

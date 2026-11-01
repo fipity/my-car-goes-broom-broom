@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import importlib
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any, ClassVar
 
@@ -30,6 +30,10 @@ class RobotsDisallowed(SourceBlocked):
 
 class SourceUnavailable(SourceError):
     """Network errors or 5xx that survived retries."""
+
+
+class SourceChanged(SourceError):
+    """The site answered, but its data isn't where the plugin expects: the parser needs updating."""
 
 
 # ---- data passed between plugins and the runner -------------------------------------------
@@ -101,6 +105,14 @@ class NormalisedListing:
 
 
 # ---- the plugin base ----------------------------------------------------------------------
+@dataclass
+class KnownListing:
+    """A listing we stored earlier, as passed to `confirm_gone`."""
+
+    source_listing_id: str
+    url: str
+
+
 class SourcePlugin(ABC):
     name: ClassVar[str]
     parser_version: ClassVar[int] = 1  # bump when parse() changes, to find rows to re-parse
@@ -108,6 +120,12 @@ class SourcePlugin(ABC):
 
     def __init__(self, config: SourceConfig):
         self.config = config
+        # Set by the runner: source_listing_id -> the latest stored payload (or None). Lets a
+        # plugin reuse an expensive detail fetch when the search result hasn't changed.
+        self.previous: Callable[[str], object | None] = lambda _id: None
+        # A plugin sets this when it stopped early (page cap etc.). Disappearance checks only
+        # run after complete searches, so a truncated run never marks anything inactive.
+        self.truncated = False
 
     @abstractmethod
     def search(self, params: SearchParams, http: PoliteClient) -> AsyncIterator[RawListing]:
@@ -117,6 +135,12 @@ class SourcePlugin(ABC):
         """Fetch one listing's detail page/JSON. Optional: only for sources whose search
         results lack fields we need."""
         raise NotImplementedError
+
+    async def confirm_gone(self, listing: KnownListing, http: PoliteClient) -> bool | None:
+        """Called for listings a complete search no longer returns. True = sold/removed (mark
+        inactive), False = still listed (it just stopped matching), None = can't tell.
+        The default trusts the search: absent means gone."""
+        return True
 
     @abstractmethod
     def parse(self, raw: RawListing) -> NormalisedListing:

@@ -29,6 +29,7 @@
       {% for s in sorts %}<option value="{{ s }}" {% if f.sort == s %}selected{% endif %}>{{ sort_names[s] }}</option>{% endfor %}
     </select>
   </label>
+  <label class="chk"><input type="checkbox" name="include_inactive" value="1" {% if f.include_inactive %}checked{% endif %}> Include sold</label>
   <div class="actions"><button type="submit">Apply</button><a class="btn ghost" href="/">Reset</a></div>
 </form>
 
@@ -38,7 +39,7 @@
 <div class="empty">
   <p><strong>No listings yet.</strong></p>
   <p>Create a saved search on <a href="/searches">Searches</a> and press <em>Run now</em>.
-     Until real sources arrive in phase 3, turn on the <em>Demo</em> source on <a href="/sources">Sources</a> to see sample data.</p>
+     Check which sources are switched on under <a href="/sources">Sources</a>. <em>Demo</em> gives you fake sample data.</p>
 </div>
 {% else %}
 <ul class="grid">

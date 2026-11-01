@@ -4,7 +4,16 @@ from collections.abc import AsyncIterator
 from sqlalchemy import func, select
 
 from carscout.core.config import load_sources
-from carscout.models import Listing, PriceHistory, RawPayload, RunStatus, SavedSearch, ScrapeRun, Source
+from carscout.models import (
+    Listing,
+    PriceHistory,
+    RawPayload,
+    RunStatus,
+    SavedSearch,
+    ScrapeRun,
+    SearchListing,
+    Source,
+)
 from carscout.sources.base import RawListing, SearchParams, SourceBlocked
 from carscout.sources.demo import Plugin as Demo
 from carscout.worker.queue import claim_next, enqueue_search, sync_sources
@@ -130,3 +139,116 @@ async def test_enqueue_respects_toggles_config_and_dedup(sm):
     assert _queue_and_run(sm) == []  # already queued for this search
     with sm.begin() as s:
         assert claim_next(s, {"demo"}) is None  # one run per source at a time
+
+
+# ---- disappearance (is_active) ------------------------------------------------------------
+class FirstThree(Demo):
+    """Demo, but only the first 3 of the 5 listings: the other 2 have 'disappeared'."""
+
+    async def search(self, params, http):
+        n = 0
+        async for raw in super().search(params, http):
+            if n < 3:
+                yield raw
+            n += 1
+
+
+class FirstThreeStillListed(FirstThree):
+    async def confirm_gone(self, listing, http):
+        return False  # e.g. the car is still for sale, just no longer matches the search
+
+
+async def _two_runs(sm, plugin_cls, **second_run_params):
+    """A normal run (5 listings), then a second run with `plugin_cls` and extra search params."""
+    _setup(sm)
+    [r1] = _queue_and_run(sm)
+    await execute_run(sm, r1)
+    if second_run_params:
+        with sm.begin() as s:
+            s.get(SavedSearch, 1).params = {"make": "Toyota", "model": "Corolla", **second_run_params}
+    [r2] = _queue_and_run(sm)
+    await execute_run(sm, r2, plugin=plugin_cls(load_sources()["demo"]))
+    return r2
+
+
+async def test_disappeared_listings_marked_inactive(sm):
+    r2 = await _two_runs(sm, FirstThree)
+    with sm() as s:
+        active = s.scalar(select(func.count(Listing.id)).where(Listing.is_active.is_(True)))
+        assert active == 3 and s.get(ScrapeRun, r2).gone == 2
+        assert s.scalar(select(func.count()).select_from(SearchListing)) == 5
+    # Seen again later: active again, without a duplicate row.
+    [r3] = _queue_and_run(sm)
+    await execute_run(sm, r3)
+    with sm() as s:
+        assert s.scalar(select(func.count(Listing.id)).where(Listing.is_active.is_(True))) == 5
+        assert s.scalar(select(func.count(Listing.id))) == 5
+
+
+async def test_still_listed_elsewhere_stays_active(sm):
+    r2 = await _two_runs(sm, FirstThreeStillListed)
+    with sm() as s:
+        assert s.scalar(select(func.count(Listing.id)).where(Listing.is_active.is_(True))) == 5
+        assert s.get(ScrapeRun, r2).gone == 0
+
+
+async def test_truncated_run_marks_nothing_inactive(sm):
+    # max_results=3 stops the run at the cap: we can't know what's missing, so nothing is touched.
+    r2 = await _two_runs(sm, Demo, max_results=3)
+    with sm() as s:
+        assert s.scalar(select(func.count(Listing.id)).where(Listing.is_active.is_(True))) == 5
+        assert s.get(ScrapeRun, r2).gone == 0
+
+
+async def test_blocked_run_marks_nothing_inactive(sm):
+    r2 = await _two_runs(sm, AlwaysBlocked)
+    with sm() as s:
+        assert s.scalar(select(func.count(Listing.id)).where(Listing.is_active.is_(True))) == 5
+        assert s.get(ScrapeRun, r2).status == "degraded"
+
+
+# ---- storage details ----------------------------------------------------------------------
+class LongValues(Demo):
+    def parse(self, raw):
+        l = super().parse(raw)
+        l.colour = "Very " * 20 + "Red"
+        return l
+
+
+async def test_overlong_values_are_trimmed_not_fatal(sm):
+    _setup(sm)
+    [r1] = _queue_and_run(sm)
+    assert await execute_run(sm, r1, plugin=LongValues(load_sources()["demo"])) == RunStatus.OK
+    with sm() as s:
+        assert len(s.scalars(select(Listing)).first().colour) == 32
+
+
+async def test_previous_payload_lookup(sm):
+    _setup(sm)
+    [r1] = _queue_and_run(sm)
+    await execute_run(sm, r1)
+    seen = {}
+
+    class Peek(Demo):
+        async def search(self, params, http):
+            async for raw in super().search(params, http):
+                seen[raw.source_listing_id] = self.previous(raw.source_listing_id)
+                yield raw
+
+    [r2] = _queue_and_run(sm)
+    await execute_run(sm, r2, plugin=Peek(load_sources()["demo"]))
+    assert len(seen) == 5 and all(isinstance(v, dict) and v["make"] == "Toyota" for v in seen.values())
+
+
+def test_reparse_command(sm):
+    from carscout.cli import reparse
+
+    _setup(sm)
+    [r1] = _queue_and_run(sm)
+    import asyncio
+    asyncio.run(execute_run(sm, r1))
+    with sm.begin() as s:
+        s.scalars(select(Listing)).first().colour = "WRONG"
+    assert reparse("demo") == (5, 1)
+    with sm() as s:
+        assert "WRONG" not in {l.colour for l in s.scalars(select(Listing))}

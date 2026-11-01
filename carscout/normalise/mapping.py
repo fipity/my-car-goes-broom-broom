@@ -1,6 +1,7 @@
-"""Make/model name normalisation. Mapping tables live in normalise/data/*.yaml; extend them there.
+"""Name and spec normalisation. Mapping tables live in normalise/data/*.yaml; extend them there.
 
-Phase 2 provides the mechanism and a starter table; phase 3/4 grow it as real sources arrive.
+- makes.yaml / models.yaml: make and model aliases ("VW" -> "Volkswagen", "hi-lux" -> "HiLux")
+- specs.yaml: body type, transmission, fuel and drivetrain vocabularies
 """
 from __future__ import annotations
 
@@ -74,3 +75,31 @@ def normalise_state(s: str | None) -> str | None:
     if not s:
         return None
     return _STATES.get(_key(s))
+
+
+@lru_cache
+def _spec_tables() -> dict[str, dict[str, str]]:
+    raw = yaml.safe_load((DATA / "specs.yaml").read_text()) or {}
+    out: dict[str, dict[str, str]] = {}
+    for fld, values in raw.items():
+        t: dict[str, str] = {}
+        for canonical, aliases in (values or {}).items():
+            canonical = str(canonical)
+            t[_key(canonical)] = canonical
+            for alias in aliases or []:
+                t[_key(str(alias))] = canonical
+        out[fld] = t
+    return out
+
+
+def normalise_spec(field: str, value: str | None) -> str | None:
+    """field is one of body_type, transmission, fuel_type, drivetrain."""
+    if not value or not str(value).strip():
+        return None
+    value = str(value).strip()
+    return _spec_tables().get(field, {}).get(_key(value), _smart_title(value))
+
+
+def same_name(a: str | None, b: str | None) -> bool:
+    """Loose equality for normalised names: ignores case, spaces and punctuation."""
+    return a is not None and b is not None and _key(a) == _key(b)

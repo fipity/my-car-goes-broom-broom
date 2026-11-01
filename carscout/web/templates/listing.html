@@ -45,6 +45,15 @@
   </table>
 </section>
 
+{% if l.images|length > 1 %}
+<section>
+  <h2>Photos <span class="muted small">({{ l.images|length }})</span></h2>
+  <div class="strip">
+    {% for src in l.images %}<a href="{{ src }}" target="_blank" rel="noopener noreferrer"><img src="{{ src }}" alt="" loading="lazy" referrerpolicy="no-referrer"></a>{% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% if l.description %}
 <section>
   <h2>Description</h2>
