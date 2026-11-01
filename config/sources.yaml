@@ -50,8 +50,12 @@ sources:
 
   facebook:
     label: Facebook Marketplace
-    enabled: false       # experimental, phase 8
+    enabled: false
     implemented: false
+    unavailable: >-
+      facebook.com's robots.txt disallows every page to general crawlers, and Meta prohibits
+      automated data collection without its written permission (checked 2026-11-01). There is no
+      public Marketplace listings API, so CarScout doesn't collect from Facebook.
 
   demo:
     label: Demo (fake data)

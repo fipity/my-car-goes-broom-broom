@@ -62,3 +62,23 @@ async def test_client_honours_crawl_delay():
     await c.get("https://x.test/b")
     assert c.delay == 9
     assert sleeps and max(sleeps) == 9
+
+
+async def test_facebook_marketplace_refused():
+    """Phase 8 outcome: robots.txt disallows everything, so the client never fetches Marketplace."""
+    import pytest
+
+    from carscout.sources.base import RobotsDisallowed
+
+    text = (Path(__file__).parent / "fixtures/facebook/robots_excerpt.txt").read_text()
+    assert not Robots.parse(text).can_fetch(UA, "https://www.facebook.com/marketplace/melbourne/vehicles")
+    fetched: list[str] = []
+
+    def handler(req: httpx.Request):
+        fetched.append(req.url.path)
+        return httpx.Response(200, text=text if req.url.path == "/robots.txt" else "<html>listings</html>")
+
+    c, _ = make_client(handler)
+    with pytest.raises(RobotsDisallowed):
+        await c.get("https://www.facebook.com/marketplace/melbourne/vehicles")
+    assert fetched == ["/robots.txt"]  # the Marketplace page itself was never requested

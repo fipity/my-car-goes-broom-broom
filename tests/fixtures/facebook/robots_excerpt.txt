@@ -1,0 +1,11 @@
+# Notice: Collection of data on Facebook through automated means is
+# prohibited unless you have express written permission from Facebook
+# and may only be conducted for the limited purpose contained in said
+# permission.
+# All authorized user-agents listed on this page must comply with Meta’s
+# Automated Data Collection Terms available at:
+# https://www.facebook.com/legal/automated_data_collection_terms
+# ... ~1,000 lines of named crawler groups omitted (captured 2026-11-01) ...
+
+User-agent: *
+Disallow: /

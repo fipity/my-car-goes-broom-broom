@@ -13,7 +13,7 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
 | 5 | Dedupe + price history | ✅ Done 2026-11-01 |
 | 6 | Valuation module + tests | ✅ Done 2026-11-01 |
 | 7 | Full UI: filters, detail, saved-search alerts, sources page | ✅ Done 2026-11-01 |
-| 8 | Facebook Marketplace (experimental) | ⏭ Optional |
+| 8 | Facebook Marketplace (experimental) | ✅ Closed 2026-11-01: unavailable (robots.txt disallows all) |
 
 ## Architecture (approved in phase 1)
 
@@ -170,3 +170,11 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
   - After the fix: RAV4 petrol −0.6% average, hybrid +0.3% (sd ~5%); "Great deal" count 12 → 4.
 - **Drivetrain:** "2WD" is its own value now (it was mapped to RWD, but a 2WD RAV4 is front-drive), compared via `drivetrain_family` (2wd/awd). Carsales "MY14" suffixes are stripped. Carsales parser is now v3.
 - 116 tests.
+
+## Phase 8 notes (2026-11-01)
+
+- facebook.com/robots.txt ends with `User-agent: *` / `Disallow: /`, and its header prohibits automated data collection without Meta's express written permission. Marketplace has no public listings API.
+- CarScout honours robots.txt for every source, so a scraper isn't possible within the project's rules. No plugin was written.
+- `facebook` stays `enabled: false`, `implemented: false`, with an `unavailable:` note shown on the Sources page.
+- A test (`tests/test_robots.py::test_facebook_marketplace_refused`, using a robots.txt excerpt fixture) proves the client refuses Marketplace URLs without requesting them.
+- **Final source line-up:** Cars24 (full), Carsales (first-page cards with fan-out). Gumtree, Drive and Facebook are unavailable.

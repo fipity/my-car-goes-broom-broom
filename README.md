@@ -2,7 +2,7 @@
 
 A self-hosted aggregator for Australian used-car listings, for personal use. It runs your saved searches against several sites, stores every listing in one database with price history, and (from phase 6) estimates each car's market value.
 
-Status: **phase 7 of 8 done.** **Cars24** and **Carsales** are live, the same car on both sites is shown once, every listing has a market value and deal rating, and the UI has full filters, saved-search alerts and price charts. Gumtree and Drive block all automated access with bot challenges, so they're marked unavailable. Phase 8 (Facebook Marketplace) is optional. See [`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/BRIEF.md`](docs/BRIEF.md) for the full spec.
+Status: **all 8 phases done.** **Cars24** and **Carsales** are live, the same car on both sites is shown once, every listing has a market value and deal rating, and the UI has full filters, saved-search alerts and price charts. Gumtree and Drive block all automated access with bot challenges, so they're marked unavailable. Facebook Marketplace (phase 8) is marked unavailable: its robots.txt disallows all crawling. See [`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/BRIEF.md`](docs/BRIEF.md) for the full spec.
 
 ## Setup
 
@@ -75,7 +75,7 @@ If a site keeps refusing, or serves a bot-challenge page (Cloudflare, DataDome, 
 | Carsales | ✅ live, partial | Carsales puts a DataDome captcha on every URL with a query string (so no `?offset=` paging) and on every detail page. CarScout doesn't try to get past it, so it reads only the **first page (~25 cars) of SEO search paths** such as `/cars/used/toyota/corolla/victoria-state/hatch-bodystyle/`. To see more of a big search, it fans out over up to `max_pages` paths per run: one per state in the search, then splits by state, body style and transmission using the values seen on the first page. Year, km and price are filtered by CarScout. You get card data only (no VIN, suburb or description), and "sold" detection only runs when a search is small enough to fit on its first pages. Coverage builds up over runs as Carsales' "Featured" order changes. |
 | Gumtree | ❌ unavailable | Peakhour bot challenge on every page, even for a headless browser. CarScout doesn't get around bot protection. |
 | Drive | ❌ unavailable | Cloudflare Turnstile challenge on every URL, robots.txt included. |
-| Facebook Marketplace | phase 8 (optional) | |
+| Facebook Marketplace | ❌ unavailable | robots.txt disallows every page to general crawlers, and Meta prohibits automated collection without written permission. There's no public listings API. |
 
 ## Adding a source
 
