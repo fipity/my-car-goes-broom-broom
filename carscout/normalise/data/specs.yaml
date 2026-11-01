@@ -1,0 +1,34 @@
+# Spec vocabularies: field -> canonical value: [aliases]. Matching ignores case, spaces and
+# punctuation. Values not listed are kept as the source wrote them (title-cased).
+body_type:
+  Hatch: [hatchback, hatch back, liftback]
+  Sedan: [saloon]
+  Wagon: [station wagon, estate, sports wagon]
+  SUV: [suv wagon, sport utility, crossover, 4wd wagon]
+  Ute: [utility, pick up, pickup, dual cab ute, single cab ute, extra cab ute, cab ute]
+  Cab Chassis: [cab-chassis, cabchassis, dual cab chassis, single cab chassis, tray]
+  Van: [van/minivan, minivan, people mover, peoplemover, panel van, bus]
+  Coupe: [coupé]
+  Convertible: [cabriolet, cabrio, roadster, softtop, soft top]
+  Light Truck: [truck]
+
+transmission:
+  Automatic: [auto, automatic transmission, cvt, constantly variable transmission,
+              continuously variable, dct, dual clutch, sports automatic, automated manual, amt,
+              sports automatic dual clutch, 1 speed reduction gear, reduction gear]
+  Manual: [man, manual transmission, 5 speed manual, 6 speed manual]
+
+fuel_type:
+  Petrol: [unleaded, unleaded petrol, ulp, premium unleaded, premium unleaded petrol, pulp,
+           e10, petrol - premium ulp, petrol - unleaded ulp]
+  Diesel: [turbo diesel]
+  Hybrid: [petrol hybrid, hybrid petrol, petrol/electric, hev, petrol - electric]
+  Plug-in Hybrid: [phev, plug in hybrid, plugin hybrid, petrol/electric plug-in]
+  Electric: [ev, bev, electric vehicle, battery electric]
+  LPG: [gas, dual fuel, petrol/lpg]
+
+drivetrain:
+  FWD: [front wheel drive, front-wheel drive, front, 4x2 front]
+  RWD: [rear wheel drive, rear-wheel drive, rear, 4x2, 2wd]
+  AWD: [all wheel drive, all-wheel drive, 4matic, quattro, xdrive, 4motion]
+  4WD: [four wheel drive, four-wheel drive, 4x4, part time 4wd, constant 4wd]

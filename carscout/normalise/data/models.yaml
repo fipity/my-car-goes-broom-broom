@@ -1,0 +1,39 @@
+# make (canonical, as in makes.yaml) -> canonical model: [aliases]
+Toyota:
+  Corolla: []
+  HiLux: [hilux, hi-lux, hi lux]
+  RAV4: [rav 4, rav-4]
+  LandCruiser: [land cruiser]
+  LandCruiser Prado: [prado, land cruiser prado]
+  C-HR: [chr, c hr]
+Mazda:
+  "2": [mazda2]
+  "3": [mazda3]
+  "6": [mazda6]
+  CX-3: [cx3]
+  CX-5: [cx5]
+  CX-9: [cx9]
+  BT-50: [bt50]
+Volkswagen:
+  Golf: []
+  Polo: []
+  Amarok: []
+  Tiguan: []
+Hyundai:
+  i30: [i-30]
+  Tucson: []
+  Santa Fe: [santafe]
+Mitsubishi:
+  ASX: []
+  Outlander: []
+  Triton: []
+  Pajero Sport: [pajerosport]
+Ford:
+  Ranger: []
+  Everest: []
+  Focus: []
+  Mustang: []
+Nissan:
+  Navara: []
+  X-Trail: [xtrail, x trail]
+  Patrol: []
