@@ -55,7 +55,7 @@
     <summary>How this was worked out</summary>
     <ul class="small">
       {% if v.method == 'regression' %}
-      <li>Regression over {{ v.details.group_size }} {{ l.make }} {{ l.model }}s (fit R² {{ v.details.r2 }}): price modelled on age, odometer, transmission, seller type, variant and body.
+      <li>Regression over {{ v.details.group_size }} {{ l.make }} {{ l.model }}s (fit R² {{ v.details.r2 }}): price modelled on age, odometer, transmission, fuel, drivetrain, seller type, badge and body.
         Around this car, each year older is worth {{ v.details.per_year_pct }}% and each extra 10,000 km {{ v.details.per_10k_km_pct }}%.</li>
       {% if v.details.comps_estimate %}<li>Cross-check: the comparables below have a weighted median of {{ v.details.comps_estimate|money }}{% if v.details.estimates_gap_pct is defined %} ({{ v.details.estimates_gap_pct }}% apart){% endif %}.</li>{% endif %}
       {% else %}

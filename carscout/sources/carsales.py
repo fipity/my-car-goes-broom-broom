@@ -197,7 +197,7 @@ def _network_id(card: dict[str, Any]) -> str | None:
 
 class Plugin(SourcePlugin):
     name = "carsales"
-    parser_version = 2  # 2: badge case ("Zr" -> "ZR")
+    parser_version = 3  # 2: badge case ("Zr" -> "ZR"); 3: "2WD" kept as 2WD, MYxx stripped
 
     # -- paths -----------------------------------------------------------------------------
     @staticmethod
@@ -347,6 +347,7 @@ class Plugin(SourcePlugin):
             pass
         if m:
             badge, trans_word, drive = subtitle[: m.start()].strip(), m.group(1), subtitle[m.end():].strip()
+            drive = re.sub(r"\bMY\d{2}\b", "", drive).strip()  # "2WD MY14" -> "2WD"
         model, variant = normalise_model_variant(make, meta.get("model"), badge or None)
 
         body = engine = transmission = None

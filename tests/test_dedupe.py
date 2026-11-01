@@ -166,3 +166,11 @@ async def test_runner_dedupes_after_run(sm):
     with sm() as s:
         assert s.scalar(select(func.count(Listing.id)).where(Listing.vehicle_id.is_(None))) == 0
         assert s.scalar(select(func.count(Vehicle.id))) == 5  # demo listings are 5 different cars
+
+
+def test_site_naming_differences_still_match():
+    # Cars24: "GX (2WD) Hybrid", FWD. Carsales: "GX", "2WD". Same car.
+    a = replace(C24, model="RAV4", variant="GX (2WD) Hybrid", drivetrain="FWD", colour=None, vin=None)
+    b = replace(CS, model="RAV4", variant="GX", drivetrain="2WD")
+    assert compare(a, b)
+    assert compare(a, replace(b, drivetrain="AWD")) is None  # 2WD vs AWD is a real difference

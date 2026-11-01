@@ -29,7 +29,8 @@ fuel_type:
 
 drivetrain:
   FWD: [front wheel drive, front-wheel drive, front, 4x2 front, f]   # f/r: Carsales shorthand
-  RWD: [rear wheel drive, rear-wheel drive, rear, 4x2, 2wd, r]
+  RWD: [rear wheel drive, rear-wheel drive, rear, r]
+  2WD: [two wheel drive, 4x2, 2 wheel drive]   # front or rear unknown: compatible with both
   AWD: [all wheel drive, all-wheel drive, 4matic, quattro, xdrive, 4motion, i-activ awd, gr-four,
         symmetrical awd, e-four, s-awc]
   4WD: [four wheel drive, four-wheel drive, 4x4, part time 4wd, constant 4wd]

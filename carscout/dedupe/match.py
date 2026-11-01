@@ -19,6 +19,8 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from carscout.normalise.mapping import drivetrain_family, variant_core
+
 
 @dataclass(frozen=True)
 class Car:
@@ -89,7 +91,8 @@ def _tokens(s: str | None) -> set[str]:
 
 
 def variant_similarity(a: str | None, b: str | None) -> float | None:
-    ta, tb = _tokens(a), _tokens(b)
+    """Token overlap of the badges, ignoring drivetrain/fuel/year words sites add."""
+    ta, tb = _tokens(variant_core(a)), _tokens(variant_core(b))
     if not ta or not tb:
         return None
     return len(ta & tb) / len(ta | tb)
@@ -111,7 +114,7 @@ def compare(a: Car, b: Car, cfg: MatchConfig = MatchConfig()) -> Match | None:
         return None
     for x, y in ((a.make, b.make), (a.model, b.model), (a.state, b.state), (a.body_type, b.body_type),
                  (a.transmission, b.transmission), (a.fuel_type, b.fuel_type),
-                 (a.drivetrain, b.drivetrain), (a.colour, b.colour)):
+                 (drivetrain_family(a.drivetrain), drivetrain_family(b.drivetrain)), (a.colour, b.colour)):
         if _conflict(x, y):
             return None
 

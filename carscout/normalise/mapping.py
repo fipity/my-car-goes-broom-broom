@@ -151,6 +151,30 @@ def normalise_spec(field: str, value: str | None) -> str | None:
     return _spec_tables().get(field, {}).get(_key(value), _smart_title(value))
 
 
+_DRIVE_FAMILY = {"fwd": "2wd", "rwd": "2wd", "2wd": "2wd", "awd": "awd", "4wd": "awd"}
+
+
+def drivetrain_family(value: str | None) -> str | None:
+    """2wd | awd | None. Sites disagree on FWD vs "2WD" and AWD vs "4x4" for the same car,
+    so comparisons use the family."""
+    return _DRIVE_FAMILY.get(_key(value or ""))
+
+
+# Words sites put in the variant that are really drivetrain, fuel, transmission or model year.
+_NOT_BADGE = re.compile(r"\b(?:hybrid|hybr|petrol|diesel|electric|phev|2wd|awd|4wd|4x4|4x2|fwd|rwd|"
+                        r"auto|automatic|manual|cvt|my\d{2}|full size spare|e-?four)\b", re.I)
+
+
+def variant_core(variant: str | None) -> str | None:
+    """The badge alone, for comparing variants across sites: "GX (2WD) Hybrid" -> "gx"."""
+    if not variant:
+        return None
+    core = _NOT_BADGE.sub(" ", variant)
+    core = re.sub(r"[()\[\],]", " ", core)
+    core = " ".join(core.lower().split())
+    return core or None
+
+
 def same_name(a: str | None, b: str | None) -> bool:
     """Loose equality for normalised names: ignores case, spaces and punctuation."""
     return a is not None and b is not None and _key(a) == _key(b)

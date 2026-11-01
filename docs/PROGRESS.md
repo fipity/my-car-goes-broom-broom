@@ -160,3 +160,13 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
 - **Phone polish:** compact result rows (photo left), two-column specs and form fields.
 - **Demo:** synthetic sources are hidden from listings unless chosen as the source (a fake car was topping "Best deal").
 - **Tests:** 113. New `tests/test_phase7_ui.py` covers filters, radius, location fill, search changes/seen/edit, the chart, and source counts.
+
+## After phase 7 (2026-11-01)
+
+- **New saved search:** "Toyota RAV4" (Cars24 + Carsales). The first run stored 39 + 165 listings.
+- **Valuation fix found on live RAV4 data:** petrol RAV4s were rated −10…−25% "below market" because the model ignored fuel (hybrids carry a premium).
+  - Fuel type and 2WD/AWD now go into the regression and the same-specs tiers, and same-fuel comps weigh more.
+  - Variant dummies and dedupe use the badge only (`variant_core`): Cars24 "GX (2WD) Hybrid" = Carsales "GX".
+  - After the fix: RAV4 petrol −0.6% average, hybrid +0.3% (sd ~5%); "Great deal" count 12 → 4.
+- **Drivetrain:** "2WD" is its own value now (it was mapped to RWD, but a 2WD RAV4 is front-drive), compared via `drivetrain_family` (2wd/awd). Carsales "MY14" suffixes are stripped. Carsales parser is now v3.
+- 116 tests.

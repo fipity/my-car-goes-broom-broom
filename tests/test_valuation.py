@@ -254,3 +254,34 @@ def test_range_widens_where_prices_scatter():
     width = lambda r: (r.p75 - r.p25) / r.estimate
     assert width(old) > 2 * width(new)
     assert old.confidence != "High"
+
+
+def test_fuel_and_drivetrain_are_priced_in():
+    # RAV4-like market: hybrids sell 15% higher, AWD 6% higher. A fairly priced petrol 2WD car
+    # must come out "Fair", not a bargain (the bug seen on live RAV4 data).
+    rnd = random.Random(21)
+    pool = []
+    for i, it in enumerate(market(220, seed=21)):
+        hybrid, awd = rnd.random() < 0.6, rnd.random() < 0.4
+        price = true_price(it.year, it.odometer_km, it.variant, it.transmission == "Manual")
+        price *= (1.15 if hybrid else 1.0) * (1.06 if awd else 1.0) * math.exp(rnd.gauss(0, 0.04))
+        pool.append(replace(it, price=int(price), fuel_type="Hybrid" if hybrid else "Petrol",
+                            drivetrain="AWD" if awd else rnd.choice(["FWD", "2WD"])))
+    group = fit_group(pool, CFG, REF_YEAR)
+    petrol = replace(target(), fuel_type="Petrol", drivetrain="2WD")
+    hybrid_awd = replace(target(), fuel_type="Hybrid", drivetrain="AWD",
+                         price=int(target().price * 1.15 * 1.06))
+    assert value(petrol, pool, CFG, group).label == "Fair"
+    assert value(hybrid_awd, pool, CFG, group).label == "Fair"
+    _, comps, _ = select_comps(petrol, pool, CFG)
+    assert all(c.fuel_type == "Petrol" for c, _ in comps)  # same-specs tiers keep fuel apart
+
+
+def test_variant_core_ignores_site_noise():
+    from carscout.normalise.mapping import drivetrain_family, variant_core
+
+    assert variant_core("GX (2WD) Hybrid") == variant_core("GX") == "gx"
+    assert variant_core("GX (AWD) Hybr Full Size Spare") == "gx"
+    assert variant_core("Ascent Sport Hybrid") == "ascent sport"
+    assert drivetrain_family("FWD") == drivetrain_family("2WD") == "2wd"
+    assert drivetrain_family("4WD") == drivetrain_family("AWD") == "awd"

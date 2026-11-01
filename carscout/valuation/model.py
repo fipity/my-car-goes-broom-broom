@@ -7,7 +7,8 @@ For one target listing:
    scaled by a per-state factor):
    - comps: weighted median of the comparables (closer year/km/variant = more weight), with the
      weighted 25th-75th percentiles as the range;
-   - regression: log(price) ~ age + age^2 + km + km^2 + manual + private seller + variant + body,
+   - regression: log(price) ~ age + age^2 + km + km^2 + manual + private seller + AWD + badge
+     (variant minus drivetrain/fuel words) + body + fuel,
      ridge-regularised, fitted per make/model on all its cars. Used when the group is big enough,
      fits well (R^2) and the target is inside the data it was fitted on.
 3. Regression wins when usable, else the comps median. The price difference gives the deal label.
@@ -25,6 +26,7 @@ from typing import Any
 import numpy as np
 
 from carscout.dedupe.match import variant_similarity
+from carscout.normalise.mapping import drivetrain_family, variant_core
 from carscout.valuation.config import Tier, ValuationConfig
 
 
@@ -43,6 +45,8 @@ class Item:
     transmission: str | None = None
     body_type: str | None = None
     seller_type: str = "unknown"
+    fuel_type: str | None = None
+    drivetrain: str | None = None
     is_active: bool = True
     last_seen: datetime | None = None
 
@@ -122,6 +126,10 @@ def _comp_weight(t: Item, c: Item) -> float:
         w *= 1.1
     if t.body_type and _norm(t.body_type) == _norm(c.body_type):
         w *= 1.1
+    if t.fuel_type and _norm(t.fuel_type) == _norm(c.fuel_type):
+        w *= 1.3  # hybrid vs petrol is a big price difference
+    if drivetrain_family(t.drivetrain) and drivetrain_family(t.drivetrain) == drivetrain_family(c.drivetrain):
+        w *= 1.1
     if not c.is_active:
         w *= 0.8  # sold listings: last asking price, a little older
     return w
@@ -136,7 +144,9 @@ def _in_tier(t: Item, c: Item, tier: Tier, cfg: ValuationConfig) -> bool:
         band = max(tier.km_band * t.odometer_km, cfg.km_band_min)
         if abs(c.odometer_km - t.odometer_km) > band:
             return False
-    if tier.same_specs and (_clash(t.transmission, c.transmission) or _clash(t.body_type, c.body_type)):
+    if tier.same_specs and (_clash(t.transmission, c.transmission) or _clash(t.body_type, c.body_type)
+                            or _clash(t.fuel_type, c.fuel_type)
+                            or _clash(drivetrain_family(t.drivetrain), drivetrain_family(c.drivetrain))):
         return False
     if tier.same_variant:
         sim = variant_similarity(t.variant, c.variant)
@@ -171,6 +181,7 @@ class GroupModel:
     sd: np.ndarray
     variants: list[str]
     bodies: list[str]
+    fuels: list[str]
     ref_year: int
     r2: float
     n: int
@@ -186,10 +197,12 @@ class GroupModel:
         km = it.odometer_km / 10000.0
         row = [age, age * age, km, km * km,
                1.0 if _norm(it.transmission) == "manual" else 0.0,
-               1.0 if it.seller_type == "private" else 0.0]
-        v, b = _norm(it.variant), _norm(it.body_type)
+               1.0 if it.seller_type == "private" else 0.0,
+               1.0 if drivetrain_family(it.drivetrain) == "awd" else 0.0]
+        v, b, f = _norm(variant_core(it.variant)), _norm(it.body_type), _norm(it.fuel_type)
         row += [1.0 if v == x else 0.0 for x in self.variants]
         row += [1.0 if b == x else 0.0 for x in self.bodies]
+        row += [1.0 if f == x else 0.0 for x in self.fuels]
         return np.array(row)
 
     def eligible(self, it: Item) -> bool:
@@ -241,8 +254,9 @@ def fit_group(pool: list[Item], cfg: ValuationConfig, ref_year: int) -> GroupMod
         return ranked[1:]  # the most common one is the baseline
 
     shell = GroupModel(beta=np.zeros(1), mu=np.zeros(1), sd=np.ones(1),
-                       variants=common([_norm(it.variant) for it, _ in data]),
+                       variants=common([_norm(variant_core(it.variant)) for it, _ in data]),
                        bodies=common([_norm(it.body_type) for it, _ in data]),
+                       fuels=common([_norm(it.fuel_type) for it, _ in data]),
                        ref_year=ref_year, r2=0.0, n=0, resid_q25=0.0, resid_q75=0.0,
                        year_range=(min(it.year for it, _ in data), max(it.year for it, _ in data)),
                        km_max=max(it.odometer_km for it, _ in data))

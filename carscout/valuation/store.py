@@ -25,7 +25,8 @@ def _item(l: Listing) -> Item:
     return Item(id=l.id, vehicle_id=l.vehicle_id, make=l.make, model=l.model, variant=l.variant,
                 year=l.year, odometer_km=l.odometer_km, price=l.price, price_type=l.price_type,
                 state=l.state, transmission=l.transmission, body_type=l.body_type,
-                seller_type=l.seller_type, is_active=l.is_active, last_seen=l.last_seen)
+                seller_type=l.seller_type, fuel_type=l.fuel_type, drivetrain=l.drivetrain,
+                is_active=l.is_active, last_seen=l.last_seen)
 
 
 def _key(make: str | None, model: str | None) -> tuple[str, str]:
