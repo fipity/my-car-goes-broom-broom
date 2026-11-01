@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_macros.html" import state_pill %}
+{% block title %}Sources · CarScout{% endblock %}
+{% block content %}
+<h1>Sources</h1>
+<p class="muted">A degraded source is skipped or blocked without affecting the others. Next scheduled run {{ next_run|ago if next_run else 'not scheduled' }}.</p>
+<ul class="rows">
+  {% for s in sources %}
+  <li class="row source-row">
+    <div class="grow">
+      <strong>{{ s.label }}</strong> {{ state_pill(s.state, s.state_label) }}
+      {% if s.use_browser %}<span class="pill">needs browser</span>{% endif %}
+      {% if s.queued %}<span class="pill pill-running">{{ s.queued }} queued/running</span>{% endif %}
+      <p class="muted small">
+        Last run {{ s.last_run_at|ago }}{% if s.last_count is not none %} · {{ s.last_count }} found{% endif %}
+        {% if s.last_ok_at and s.state == 'degraded' %} · last OK {{ s.last_ok_at|ago }}{% endif %}
+      </p>
+      {% if s.last_error %}<p class="error small">{{ s.last_error }}</p>{% endif %}
+    </div>
+    {% if s.toggle_allowed %}
+    <form method="post" action="/sources/{{ s.name }}/toggle">
+      <button type="submit" class="toggle" role="switch" aria-checked="{{ 'true' if s.enabled else 'false' }}" aria-label="{{ s.label }} enabled">
+        <span></span>
+      </button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+<p class="muted small">Sources marked “Disabled in config” or “Not built yet” are controlled by <code>config/sources.yaml</code>.</p>
+{% endblock %}

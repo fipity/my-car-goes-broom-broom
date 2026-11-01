@@ -1,0 +1,17 @@
+{% macro source_badge(name, labels) -%}
+<span class="src src-{{ name }}">{{ labels.get(name, name) }}</span>
+{%- endmacro %}
+
+{% macro photo(l, cls="") -%}
+{% if l.images %}
+<img class="{{ cls }}" src="{{ l.images[0] }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+{% else %}
+<div class="{{ cls }} nophoto" aria-hidden="true">
+  <svg viewBox="0 0 24 24" width="40" height="40"><path fill="currentColor" d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11a2 2 0 0 1 2 2v4h-2a2 2 0 0 1-4 0H9a2 2 0 0 1-4 0H3v-4a2 2 0 0 1 2-2zm2.1 0h9.8l-1.2-3.6a.6.6 0 0 0-.6-.4H8.9a.6.6 0 0 0-.6.4z"/></svg>
+</div>
+{% endif %}
+{%- endmacro %}
+
+{% macro state_pill(state, label) -%}
+<span class="pill pill-{{ state }}">{{ label }}</span>
+{%- endmacro %}

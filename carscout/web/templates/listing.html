@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_macros.html" import source_badge, photo %}
+{% block title %}{{ l.title }} · CarScout{% endblock %}
+{% block content %}
+<p><a href="javascript:history.back()" class="muted">← Back</a></p>
+<article class="detail">
+  {{ photo(l, "hero") }}
+  <div>
+    <h1>{{ l.title }}</h1>
+    <p class="price big">{{ l.price|money }} <small>{{ l.price_type|price_type }}</small></p>
+    <p>{{ source_badge(l.source, source_labels) }}
+      {% if l.is_active %}<span class="pill pill-ok">Active</span>{% else %}<span class="pill pill-off">No longer listed</span>{% endif %}</p>
+    <p><a class="btn" href="{{ l.url }}" target="_blank" rel="noopener noreferrer">View on {{ source_labels.get(l.source, l.source) }} ↗</a></p>
+    <p class="muted small">Market value and deal rating arrive in phase 6.</p>
+  </div>
+</article>
+
+<section>
+  <h2>Specs</h2>
+  <dl class="specs-table">
+    {% for label, value in [
+      ("Make", l.make), ("Model", l.model), ("Variant", l.variant), ("Year", l.year),
+      ("Odometer", l.odometer_km|km if l.odometer_km is not none else None),
+      ("Body", l.body_type), ("Transmission", l.transmission), ("Fuel", l.fuel_type),
+      ("Engine", l.engine), ("Drivetrain", l.drivetrain), ("Colour", l.colour),
+      ("Seller", l.seller_type|capitalize if l.seller_type != 'unknown' else None),
+      ("Location", ((l.suburb ~ ', ') if l.suburb else '') ~ (l.state or '') ~ ((' ' ~ l.postcode) if l.postcode else '')),
+      ("Rego", l.rego), ("VIN", l.vin),
+      ("First seen", l.first_seen|local), ("Last seen", l.last_seen|ago),
+    ] if value %}
+    <div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
+    {% endfor %}
+  </dl>
+</section>
+
+<section>
+  <h2>Price history</h2>
+  <table class="table">
+    <thead><tr><th>When</th><th>Price</th><th>Type</th></tr></thead>
+    <tbody>
+      {% for p in l.price_history|reverse %}
+      <tr><td>{{ p.observed_at|local }}</td><td>{{ p.price|money }}</td><td>{{ p.price_type|price_type }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% if l.description %}
+<section>
+  <h2>Description</h2>
+  <p class="desc">{{ l.description }}</p>
+</section>
+{% endif %}
+{% endblock %}

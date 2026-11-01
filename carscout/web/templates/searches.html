@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_macros.html" import source_badge, state_pill %}
+{% block title %}Searches · CarScout{% endblock %}
+{% block content %}
+<h1>Saved searches</h1>
+<p class="muted">Scheduled searches run automatically{% if next_run %}; next run {{ next_run|ago }} ({{ next_run|local('%a %d %b %H:%M') }}){% endif %}.</p>
+
+{% if searches %}
+<ul class="rows">
+  {% for s in searches %}
+  <li class="row">
+    <div class="grow">
+      <strong>{{ s.name }}</strong>
+      <p class="muted small">
+        {% set p = s.params %}
+        {{ [p.make, p.model]|select|join(' ') or 'Any make' }}
+        {% if p.year_min or p.year_max %} · {{ p.year_min or '…' }}–{{ p.year_max or '…' }}{% endif %}
+        {% if p.km_max %} · under {{ p.km_max|km }}{% endif %}
+        {% if p.price_max %} · under {{ p.price_max|money }}{% endif %}
+        {% if p.states %} · {{ p.states|join(', ') }}{% endif %}
+        · {{ 'scheduled' if s.schedule_enabled else 'manual only' }}
+      </p>
+    </div>
+    <form method="post" action="/searches/{{ s.id }}/run"><button type="submit">Run now</button></form>
+    <form method="post" action="/searches/{{ s.id }}/delete" onsubmit="return confirm('Delete this search? Listings are kept.')">
+      <button type="submit" class="ghost danger" aria-label="Delete {{ s.name }}">Delete</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">No saved searches yet. Add one below.</p>
+{% endif %}
+
+<details class="panel" {% if not searches %}open{% endif %}>
+  <summary>New saved search</summary>
+  <form method="post" action="/searches" class="form-grid">
+    <label class="span2">Name<input name="name" required maxlength="200" placeholder="Corolla 2015–2020 VIC"></label>
+    <label>Make<input name="make" placeholder="Toyota"></label>
+    <label>Model<input name="model" placeholder="Corolla"></label>
+    <label>Year from<input name="year_min" inputmode="numeric" placeholder="2015"></label>
+    <label>Year to<input name="year_max" inputmode="numeric" placeholder="2020"></label>
+    <label>Max km<input name="km_max" inputmode="numeric" placeholder="120000"></label>
+    <label>Max price<input name="price_max" inputmode="numeric" placeholder="$"></label>
+    <fieldset class="span2"><legend>States (none = all)</legend>
+      {% for st in states %}<label class="chk"><input type="checkbox" name="states" value="{{ st }}"> {{ st }}</label>{% endfor %}
+    </fieldset>
+    <label class="chk span2"><input type="checkbox" name="schedule_enabled" value="1" checked> Run on the schedule</label>
+    <div class="span2"><button type="submit">Save search</button></div>
+  </form>
+</details>
+
+<h2>Recent runs</h2>
+{% if runs %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Source</th><th>Status</th><th>Found</th><th>New</th><th>When</th><th>Detail</th></tr></thead>
+  <tbody>
+    {% for r in runs %}
+    <tr>
+      <td>{{ source_badge(r.source, source_labels) }}</td>
+      <td>{{ state_pill(r.status, r.status|capitalize) }}</td>
+      <td>{{ r.found }}</td><td>{{ r.new }}</td>
+      <td title="{{ r.queued_at|local }}">{{ (r.finished_at or r.started_at or r.queued_at)|ago }}<br><span class="muted small">{{ r.trigger }}</span></td>
+      <td class="small">{{ r.error or (r.saved_search.name if r.saved_search else '') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted small">Refresh the page to update run status.</p>
+{% else %}
+<p class="muted">No runs yet.</p>
+{% endif %}
+{% endblock %}

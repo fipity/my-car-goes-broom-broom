@@ -1,0 +1,59 @@
+name: carscout
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+  env_file: .env
+  environment:
+    POSTGRES_HOST: db
+  restart: unless-stopped
+  volumes:
+    # Edit config/sources.yaml on the host; it is re-read at the start of every run.
+    # (A directory mount, so editors that replace the file still work.)
+    - ./config:/app/config:ro
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - carscout_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  api:
+    <<: *app
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: api
+    image: carscout-api
+    ports:
+      - "${CARSCOUT_PORT:-8097}:8000"
+    depends_on:
+      db: { condition: service_healthy }
+
+  worker:
+    <<: *app
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: worker
+    image: carscout-worker
+    depends_on:
+      # api runs the migrations; the worker starts once they're applied
+      api: { condition: service_healthy }
+
+volumes:
+  carscout_pg:

@@ -1,0 +1,51 @@
+# One entry per source plugin. The key is the module name in carscout/sources/.
+# Adding a source = add carscout/sources/<name>.py (defining `Plugin`) + an entry here.
+#
+#   enabled:      false here disables the source everywhere (the UI toggle can't override it).
+#                 When true, the toggle on the Sources page decides.
+#   label:        display name
+#   delay/jitter/concurrency: politeness overrides (seconds / parallel requests)
+#   use_browser:  needs Playwright (from phase 4)
+#   options:      plugin-specific settings
+#
+# This file is re-read at the start of every run, so edits apply without a restart.
+
+sources:
+  carsales:
+    label: Carsales
+    enabled: true
+    delay: 6
+    jitter: 4
+    implemented: false   # phase 3/4
+
+  gumtree:
+    label: Gumtree
+    enabled: true
+    use_browser: true
+    implemented: false   # phase 4
+
+  cars24:
+    label: Cars24
+    enabled: true
+    delay: 3             # robots.txt asks for Crawl-delay: 2
+    implemented: false   # phase 3
+
+  drive:
+    label: Drive
+    enabled: true
+    use_browser: true
+    implemented: false   # phase 4
+
+  facebook:
+    label: Facebook Marketplace
+    enabled: false       # experimental, phase 8
+    implemented: false
+
+  demo:
+    label: Demo (fake data)
+    enabled: true        # also needs the toggle on the Sources page; off there by default
+    delay: 0
+    jitter: 0
+    options:
+      count: 12          # listings per run
+      mode: ok           # ok | blocked | error  (to test degraded handling)

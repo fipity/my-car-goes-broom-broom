@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}CarScout{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%232563eb' d='M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11a2 2 0 0 1 2 2v4h-2a2 2 0 0 1-4 0H9a2 2 0 0 1-4 0H3v-4a2 2 0 0 1 2-2zm2.1 0h9.8l-1.2-3.6a.6.6 0 0 0-.6-.4H8.9a.6.6 0 0 0-.6.4z'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">CarScout</a>
+    <nav>
+      {% set path = request.url.path %}
+      <a href="/" {% if path == '/' or path.startswith('/listings') %}aria-current="page"{% endif %}>Listings</a>
+      <a href="/searches" {% if path.startswith('/searches') %}aria-current="page"{% endif %}>Searches</a>
+      <a href="/sources" {% if path.startswith('/sources') %}aria-current="page"{% endif %}>Sources</a>
+    </nav>
+  </header>
+  <main>
+    {% if msg %}<p class="flash" role="status">{{ msg }}</p>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

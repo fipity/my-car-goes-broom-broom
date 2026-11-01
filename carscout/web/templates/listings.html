@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_macros.html" import source_badge, photo %}
+{% block content %}
+<form class="filters" method="get" action="/">
+  <label class="grow">Search<input type="search" name="q" value="{{ f.q or '' }}" placeholder="e.g. Corolla Ascent"></label>
+  <label>Make
+    <select name="make">
+      <option value="">Any</option>
+      {% for m in facets.makes %}<option {% if f.make and f.make|lower == m|lower %}selected{% endif %}>{{ m }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Model<input name="model" value="{{ f.model or '' }}" placeholder="Any"></label>
+  <label>Max price<input name="price_max" inputmode="numeric" value="{{ f.price_max or '' }}" placeholder="$"></label>
+  <label>State
+    <select name="state">
+      <option value="">Any</option>
+      {% for s in facets.states %}<option {% if f.state and f.state|upper == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Source
+    <select name="source">
+      <option value="">All</option>
+      {% for s in facets.sources %}<option value="{{ s }}" {% if f.source == s %}selected{% endif %}>{{ source_labels.get(s, s) }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Sort
+    <select name="sort">
+      {% set sort_names = {"newest": "Newest", "price_asc": "Price: low to high", "price_desc": "Price: high to low", "km_asc": "Lowest km", "year_desc": "Newest year"} %}
+      {% for s in sorts %}<option value="{{ s }}" {% if f.sort == s %}selected{% endif %}>{{ sort_names[s] }}</option>{% endfor %}
+    </select>
+  </label>
+  <div class="actions"><button type="submit">Apply</button><a class="btn ghost" href="/">Reset</a></div>
+</form>
+
+<p class="count">{{ "{:,}".format(total) }} listing{{ '' if total == 1 else 's' }}</p>
+
+{% if not items %}
+<div class="empty">
+  <p><strong>No listings yet.</strong></p>
+  <p>Create a saved search on <a href="/searches">Searches</a> and press <em>Run now</em>.
+     Until real sources arrive in phase 3, turn on the <em>Demo</em> source on <a href="/sources">Sources</a> to see sample data.</p>
+</div>
+{% else %}
+<ul class="grid">
+  {% for l in items %}
+  <li class="card">
+    <a href="/listings/{{ l.id }}" class="card-link">
+      {{ photo(l, "thumb") }}
+      <div class="card-body">
+        <h2>{{ l.title }}</h2>
+        <p class="price">{{ l.price|money }} <small>{{ l.price_type|price_type }}</small></p>
+        <p class="specs">
+          {% if l.odometer_km is not none %}<span>{{ l.odometer_km|km }}</span>{% endif %}
+          {% if l.transmission %}<span>{{ l.transmission }}</span>{% endif %}
+          {% if l.state %}<span>{{ l.suburb ~ ', ' if l.suburb }}{{ l.state }}</span>{% endif %}
+        </p>
+        <p class="meta">{{ source_badge(l.source, source_labels) }}
+          {% if not l.is_active %}<span class="pill pill-off">Gone</span>{% endif %}
+          <span class="muted">seen {{ l.first_seen|ago }}</span></p>
+      </div>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% if pages > 1 %}
+<nav class="pager">
+  {% if f.page > 1 %}<a class="btn ghost" href="{{ page_url(f.page - 1) }}">← Prev</a>{% endif %}
+  <span>Page {{ f.page }} of {{ pages }}</span>
+  {% if f.page < pages %}<a class="btn ghost" href="{{ page_url(f.page + 1) }}">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endif %}
+{% endblock %}
