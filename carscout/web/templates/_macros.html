@@ -12,6 +12,16 @@
 {% endif %}
 {%- endmacro %}
 
+{% macro deal_badge(l, full=False) -%}
+{% set v = l.valuation %}
+{% if l.excluded_reason %}
+<p class="deal-line"><span class="deal deal-excluded">Not rated: {{ l.excluded_reason|replace('_', ' ') }}</span></p>
+{% elif v and v.label %}
+<p class="deal-line"><span class="deal deal-{{ v.label|lower|replace(' ', '-') }}">{{ v.label }}</span>
+  <span class="muted small">{{ '%+.0f'|format(v.diff_pct) }}% · market {{ v.estimate|money }}{% if v.confidence == 'Low' %} · low confidence{% endif %}</span></p>
+{% endif %}
+{%- endmacro %}
+
 {% macro state_pill(state, label) -%}
 <span class="pill pill-{{ state }}">{{ label }}</span>
 {%- endmacro %}

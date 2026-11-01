@@ -2,7 +2,7 @@
 
 A self-hosted aggregator for Australian used-car listings, for personal use. It runs your saved searches against several sites, stores every listing in one database with price history, and (from phase 6) estimates each car's market value.
 
-Status: **phase 5 of 8 done.** **Cars24** and **Carsales** are live, and the same car on both sites is shown once. Gumtree and Drive block all automated access with bot challenges, so they're marked unavailable. Next: market valuation (phase 6). See [`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/BRIEF.md`](docs/BRIEF.md) for the full spec.
+Status: **phase 6 of 8 done.** **Cars24** and **Carsales** are live, the same car on both sites is shown once, and every listing has a market value and deal rating. Gumtree and Drive block all automated access with bot challenges, so they're marked unavailable. Next: the full search UI (phase 7). See [`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/BRIEF.md`](docs/BRIEF.md) for the full spec.
 
 ## Setup
 
@@ -32,7 +32,8 @@ Maintenance commands:
 ```sh
 docker compose exec api python -m carscout.cli purge-source demo   # delete one source's data
 docker compose exec api python -m carscout.cli reparse cars24      # re-run the parser over stored raw payloads (then dedupe)
-docker compose exec api python -m carscout.cli dedupe              # recompute which listings are the same car
+docker compose exec api python -m carscout.cli dedupe              # recompute which listings are the same car (then revalue)
+docker compose exec api python -m carscout.cli revalue             # recompute valuations (after editing config/valuation.yaml)
 ```
 
 ### When a listing counts as gone
@@ -103,9 +104,27 @@ Edit `MatchConfig` in `carscout/dedupe/match.py`, run `cli dedupe`, and check th
 | `threshold` | 0.75 | Fuzzy score needed. Lower means more merges and more false matches |
 | `weights` | km .45, year .25, price .15, variant .15 | How the score is made up |
 
-## Tuning valuation
+## Market value and deal ratings
 
-Comes with phase 6. The valuation logic will live in `carscout/valuation/`, as pure functions with unit tests.
+Every listing gets an estimated market value, a typical range, the difference in $ and %, a deal label (Great deal / Good deal / Fair / Above market / Overpriced) and a confidence (High / Medium / Low). The listing page explains how the estimate was reached and lists the comparable cars, so you can sanity-check it. Valuations are recomputed after every scrape for the makes and models it touched.
+
+How it works (`carscout/valuation/model.py`, pure functions with tests in `tests/test_valuation.py`):
+- **Comparables**: same make and model, **one listing per physical car** (dedupe), including cars sold in the last 180 days. Junk is excluded, and so is fake Demo data. The criteria widen step by step until there are enough: same variant and specs within ±2 years and a similar odometer, then any variant, then any body or transmission, then ±4 years at any odometer. Outliers are dropped with an IQR filter.
+- **Estimate**: a regression of log(price) on age, odometer, transmission, private vs dealer, variant and body, fitted per make and model. It's used when there are at least 30 cars, the fit is good (R² ≥ 0.5) and the car is inside the data's year and km range. Otherwise the estimate is the weighted median of the comparables (closer cars count more).
+- **Range**: 25th–75th percentile, taken from how the nearby comparables scatter around the estimate. Old cars get wider ranges than new ones.
+- **One price basis**: drive-away prices are converted to "excluding government charges" with a per-state factor before comparing, then the estimate is shown on the listing's own basis.
+- **Confidence** reflects how much data backs the estimate and how tight the range is. It drops a level when the criteria had to be widened, and again when the regression and comparables disagree by more than 25%.
+- **Junk** (not rated, not used as a comparable): no price or POA, under $500, write-offs (negations like "no write-offs on record" are handled), wrecking, parts-only and rentals. The listing shows "Not rated: …".
+
+### Tuning valuation
+
+Everything tunable is in **`config/valuation.yaml`**: label thresholds, drive-away factors, comparable tiers, outlier strictness, regression minimums, confidence levels and junk keywords. After editing, recompute with:
+
+```sh
+docker compose exec api python -m carscout.cli revalue
+```
+
+The code is in `carscout/valuation/`. Run `pytest tests/test_valuation.py` after changing it; the tests build synthetic markets with a known price formula and check the estimates against it.
 
 ## Development
 
@@ -117,4 +136,4 @@ docker compose run --rm --no-deps -v "$PWD/migrations:/app/migrations" api \
 
 ## Data model
 
-`listings` (the common schema, unique per source and source ID) · `price_history` (one row per price change) · `search_listings` (which search returned which listing, for "gone" detection) · `raw_payloads` (verbatim source data, saved only when it changes) · `saved_searches` · `scrape_runs` (also the job queue) · `sources` · `vehicles` (one row per physical car; every listing points to one) · `valuations` (phase 6) · `postcodes` (radius search, phase 7).
+`listings` (the common schema, unique per source and source ID) · `price_history` (one row per price change) · `search_listings` (which search returned which listing, for "gone" detection) · `raw_payloads` (verbatim source data, saved only when it changes) · `saved_searches` · `scrape_runs` (also the job queue) · `sources` · `vehicles` (one row per physical car; every listing points to one) · `valuations` (estimate, range, label, confidence and comparables per listing) · `postcodes` (radius search, phase 7).

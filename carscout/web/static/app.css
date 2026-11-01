@@ -134,3 +134,15 @@ legend { font-size: .8rem; color: var(--muted); }
 .strip img { height: 120px; width: auto; border-radius: 8px; display: block; background: var(--surface-2); }
 
 .also { margin: .15rem 0; display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+
+/* deal badges */
+.deal-line { margin: .2rem 0; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.deal { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: .8rem; font-weight: 600; }
+.deal-great-deal { background: var(--ok); color: var(--surface); }
+.deal-good-deal { background: var(--ok-bg); color: var(--ok); }
+.deal-fair { background: var(--surface-2); color: var(--text); }
+.deal-above-market { background: var(--warn-bg); color: var(--warn); }
+.deal-overpriced { background: var(--bad-bg); color: var(--bad); }
+.deal-excluded { background: var(--surface-2); color: var(--muted); font-weight: 500; }
+.valuation { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: .75rem; }
+.valuation .big { font-size: 1.4rem; }

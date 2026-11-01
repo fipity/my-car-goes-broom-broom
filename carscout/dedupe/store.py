@@ -12,6 +12,7 @@ from collections.abc import Iterable
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
+from carscout.core.config import synthetic_sources
 from carscout.core.logging import get_logger
 from carscout.dedupe.match import Car, MatchConfig, cluster
 from carscout.models import Listing, Vehicle
@@ -50,9 +51,16 @@ def dedupe(session: Session, blocks: Iterable[tuple[str | None, str | None]] | N
         if blocks is None or k in keys:
             by_block.setdefault(k, []).append(l)
 
+    # Fake (synthetic) listings are deduped among themselves only, never against real cars.
+    fake = synthetic_sources()
+    split: dict[tuple[str, str, bool], list[Listing]] = {}
+    for k, block in by_block.items():
+        for l in block:
+            split.setdefault((*k, l.source in fake), []).append(l)
+
     claimed: set[int] = set()
     stats = Counter()
-    for block in by_block.values():
+    for block in split.values():
         by_id = {l.id: l for l in block}
         for cl in cluster([_car(l) for l in block], cfg):
             members = [by_id[c.id] for c in cl.cars]

@@ -5,7 +5,8 @@
 #                 When true, the toggle on the Sources page decides.
 #   label:        display name
 #   delay/jitter/concurrency: politeness overrides (seconds / parallel requests)
-#   use_browser:  needs Playwright (from phase 4)
+#   synthetic:    fake data, kept apart from real listings in dedupe and valuation
+#   unavailable:  why the source can't be scraped (shown on the Sources page)
 #   options:      plugin-specific settings
 #
 # This file is re-read at the start of every run, so edits apply without a restart.
@@ -54,6 +55,7 @@ sources:
 
   demo:
     label: Demo (fake data)
+    synthetic: true      # fake listings: never used as comparables or matched with real cars
     enabled: true        # also needs the toggle on the Sources page; off there by default
     delay: 0
     jitter: 0

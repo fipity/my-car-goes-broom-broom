@@ -42,6 +42,21 @@ class OtherListing(Orm):
     is_active: bool
 
 
+class ValuationOut(Orm):
+    estimate: int | None
+    p25: int | None
+    p75: int | None
+    diff_abs: int | None
+    diff_pct: float | None
+    label: str | None        # Great deal | Good deal | Fair | Above market | Overpriced
+    confidence: str | None   # High | Medium | Low
+    method: str | None       # regression | comps | insufficient
+    n_comps: int
+    comp_ids: list[int]      # comparable listings, closest first
+    details: dict[str, Any]
+    computed_at: datetime
+
+
 class ListingOut(Orm):
     id: int
     source: str
@@ -72,6 +87,8 @@ class ListingOut(Orm):
     last_seen: datetime
     is_active: bool
     vehicle_id: int | None
+    excluded_reason: str | None  # junk filter: write_off, wrecking, parts_only, rental, low_price, no_price
+    valuation: ValuationOut | None = None
     same_car: list[OtherListing] = []
 
 

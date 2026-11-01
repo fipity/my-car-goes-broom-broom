@@ -1,0 +1,59 @@
+# Market valuation settings. Re-read every time valuations are computed (after each scrape run,
+# or `python -m carscout.cli revalue`), so edits apply without a restart.
+
+# Deal labels from the listing's price vs the estimate, in % (negative = below market).
+# A listing gets the first label whose upper bound it's under.
+labels:
+  - {label: Great deal,   below: -15}
+  - {label: Good deal,    below: -5}
+  - {label: Fair,         below: 5}
+  - {label: Above market, below: 15}
+  - {label: Overpriced,   below: null}
+
+# Prices are compared on an "excluding government charges" basis. Drive-away prices are scaled
+# by these factors (measured from Carsales listings that show both, 2026-11-01).
+drive_away_to_egc:
+  default: 0.96
+  VIC: 0.958
+  QLD: 0.970
+
+# Comparables: same make + model, one listing per car (dedupe), including sold listings seen in
+# the last `sold_max_age_days`. Tiers are tried in order until one gives `min_comps` after
+# outlier removal; later tiers widen the criteria.
+min_comps: 6
+sold_max_age_days: 180
+max_comps_shown: 20
+tiers:
+  - {name: close,  same_variant: true,  same_specs: true,  years: 2, km_band: 0.4}
+  - {name: specs,  same_variant: false, same_specs: true,  years: 2, km_band: 0.4}
+  - {name: model,  same_variant: false, same_specs: false, years: 2, km_band: 0.6}
+  - {name: wide,   same_variant: false, same_specs: false, years: 4, km_band: null}
+km_band_min: 30000          # the km band is +/- max(km_band * target km, this)
+
+# Outliers: drop comps whose (log) price is outside Q1 - k*IQR .. Q3 + k*IQR.
+iqr_k: 1.5
+
+# Regression of log(price) on age, odometer, transmission, seller type, variant and body,
+# fitted per make/model. Used instead of the comps' weighted median when it's trustworthy.
+regression:
+  min_listings: 30          # cars in the make/model group
+  min_r2: 0.5
+  min_category_count: 5     # variants/bodies rarer than this share the baseline
+  ridge: 1.0
+  max_disagreement: 0.25    # regression vs comps median further apart than this: lower confidence
+
+# Confidence from the number of comps and their spread (IQR / median).
+confidence:
+  high:   {min_comps: 15, max_spread: 0.20}
+  medium: {min_comps: 6,  max_spread: 0.35}
+
+# Junk: excluded from comps and not rated. Matched (case-insensitive) against title, variant and
+# description, after removing negations like "no write-offs on record".
+junk:
+  min_price: 500
+  keywords:
+    write_off: ['write[- ]?off', 'written[- ]off', '\bwovr\b', 'statutory', 'repairable']
+    wrecking: ['wrecking', 'wreckers?', 'dismantl']
+    parts_only: ['parts only', 'for parts', 'not running', 'non[- ]runner']
+    rental: ['\brental\b', '\brent\b', 'rent[- ]to[- ]own', 'for hire', '\buber\b ready']
+  negations: ['no (?:major )?(?:write[- ]?offs?|accidental damage)[^.;]*', 'not (?:a )?write[- ]?off', 'never (?:been )?written[- ]off', 'no stolen record']

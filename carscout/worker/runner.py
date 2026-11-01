@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from carscout.core.config import Settings, get_settings, load_sources
 from carscout.core.logging import get_logger
 from carscout.dedupe.store import dedupe
+from carscout.valuation.store import revalue
 from carscout.models import (
     Listing,
     PriceHistory,
@@ -265,11 +266,14 @@ async def execute_run(
             if status == RunStatus.OK:
                 src.last_ok_at = now
     if blocks:
-        try:
-            with sm.begin() as s:
-                dedupe(s, blocks)
-        except Exception:  # dedupe trouble must not turn a good scrape into a failure
-            bound.exception("dedupe_failed")
+        # Post-processing for the makes/models this run touched. Trouble here must not turn a
+        # good scrape into a failure; each step logs and the next run tries again.
+        for step, fn in (("dedupe", dedupe), ("valuation", revalue)):
+            try:
+                with sm.begin() as s:
+                    fn(s, blocks)
+            except Exception:
+                bound.exception(f"{step}_failed")
     bound.info("run_finished", status=status, found=found, new=new, updated=updated,
                gone=gone, truncated=truncated, requests=requests, error=error)
     return status

@@ -11,8 +11,8 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
 | 3 | First scraper + normalisation + storage | ✅ Done 2026-11-01 (Cars24) |
 | 4 | Remaining scrapers, one at a time | ✅ Done 2026-11-01: Carsales live; Gumtree and Drive unavailable (bot protection) |
 | 5 | Dedupe + price history | ✅ Done 2026-11-01 |
-| 6 | Valuation module + tests | ⏭ Next |
-| 7 | Full UI: filters, detail, saved-search alerts, sources page | |
+| 6 | Valuation module + tests | ✅ Done 2026-11-01 |
+| 7 | Full UI: filters, detail, saved-search alerts, sources page | ⏭ Next |
 | 8 | Facebook Marketplace (experimental) | |
 
 ## Architecture (approved in phase 1)
@@ -114,3 +114,23 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
 - **Normalisation:** `normalise_variant` upper-cases badges ("Zr" → "ZR"). Parser versions bumped: cars24 v3, carsales v2. Both re-parsed.
 - **Not done (by design):** photo comparison, which would mean downloading images from the sites' CDNs.
 - **Phase 6 note:** the valuation should use one listing per vehicle (the canonical one), so a car listed twice doesn't count as two comparables.
+
+## Phase 6 notes
+
+- **Module:** `carscout/valuation/`, with `model.py` (pure), `junk.py`, `config.py` and `store.py` (DB). Settings live in `config/valuation.yaml`, re-read on every recompute. numpy was added as a dependency.
+- **Comparables:** one listing per vehicle (canonical first), sold listings ≤180 days old, junk excluded, synthetic (demo) sources excluded. Four widening tiers until `min_comps` (6) survive the IQR filter (k 1.5). Weights favour closer year/km/variant/specs, and sold listings ×0.8.
+- **Estimate:** ridge regression of log(EGC price) on age, age², km, km², manual, private, and variant/body dummies (categories with ≥5 cars, the commonest as baseline). Standardised features; refitted once without IQR residual outliers. Used when n ≥ 30, R² ≥ 0.5 and the target is within the data's year and km range; otherwise the comps' weighted median.
+- **Range:** the 25th–75th percentile of residuals, widened to the nearby comps' residual spread when there are ≥5 comps. Prices scatter far more for old cars, and the global spread understated it.
+- **Price basis:** drive-away × a per-state factor gives EGC. Factors were measured from 36 Carsales listings showing both: VIC 0.958, QLD 0.970, default 0.96.
+- **Confidence:** High/Medium/Low from evidence (group n for regression, comps n otherwise) and spread. Lowered a level when the tier was widened, and again when regression and comps disagree by more than 25%.
+- **Junk:** no_price, low_price (<$500), write_off, wrecking, parts_only, rental, with a negation strip ("No write offs on record" in Cars24's history text is not junk). Stored in `listings.excluded_reason`; junk gets no valuation row.
+- **New source flag:** `synthetic: true` (on demo). Synthetic listings are deduped only among themselves and are never used as comparables. Before this, 12 fake Corollas were in the pool.
+- **Runs:** after dedupe in each scrape run (touched blocks), and via `cli revalue`. `cli dedupe` and `cli reparse` chain into revalue.
+- **UI/API:**
+  - Cards show a deal badge, % vs market and the market value; "Best deal" sort.
+  - The listing page has a Market value section (estimate, range, confidence, explanation including the per-year and per-10k-km effects) and a comparables table.
+  - The API adds `valuation` and `excluded_reason` on listings, and `sort=deal`.
+- **Live (Toyota Corolla, 159 real listings):** regression on 147 cars, R² 0.984; the effect of +1 year is about −7%, +10k km about −2.8%.
+  - Labels: Fair 87, Good 29, Above 30, Great 5, Overpriced 8.
+  - The "Great deals" are old, high-km cars with Low/Medium confidence, which is expected.
+- **Phase 7:** add a deal-rating filter. Saved-search "new / price drop" views can use valuations too.

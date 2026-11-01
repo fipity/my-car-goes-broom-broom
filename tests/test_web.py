@@ -117,3 +117,34 @@ def test_same_car_shown_once_with_both_sources(client, sm):
     assert [i["source"] for i in only_carsales] == ["carsales"]  # filter picks that site's listing
     detail_html = client.get(f"/listings/{item['id']}").text
     assert "Same car on other listings" in detail_html and "carsales.test/OAG-AD-1" in detail_html
+
+
+async def test_valuation_shown_in_ui_and_api(client, sm):
+    from carscout.models import Listing
+    from carscout.valuation.store import revalue
+    from tests.test_valuation import market
+
+    with sm.begin() as s:
+        for it in market(40, seed=9):
+            s.add(Listing(source="carsales", source_listing_id=str(it.id), url=f"https://x/{it.id}",
+                          title=f"{it.year} Toyota Corolla {it.variant}", make="Toyota", model="Corolla",
+                          variant=it.variant, year=it.year, odometer_km=it.odometer_km, price=it.price,
+                          price_type="egc", state="VIC", transmission=it.transmission, body_type="Hatch",
+                          seller_type=it.seller_type, images=[], is_active=True))
+        s.add(Listing(source="carsales", source_listing_id="wovr", url="https://x/w",
+                      title="2016 Toyota Corolla repairable write-off", make="Toyota", model="Corolla",
+                      year=2016, odometer_km=90000, price=6000, price_type="egc", images=[], is_active=True))
+    with sm.begin() as s:
+        revalue(s)
+
+    page = client.get("/api/listings?sort=deal&per_page=50").json()
+    rated = [i for i in page["items"] if i["valuation"] and i["valuation"]["diff_pct"] is not None]
+    assert rated and [i["valuation"]["diff_pct"] for i in rated] == sorted(i["valuation"]["diff_pct"] for i in rated)
+    best = rated[0]
+    html = client.get(f"/listings/{best['id']}").text
+    assert "Estimated market value" in html and "Comparables used" in html and best["valuation"]["label"] in html
+    assert "deal-" in client.get("/?sort=deal").text
+
+    junk = next(i for i in page["items"] if i["excluded_reason"])
+    assert junk["excluded_reason"] == "write_off" and junk["valuation"] is None
+    assert "Not rated: write off" in client.get(f"/listings/{junk['id']}").text

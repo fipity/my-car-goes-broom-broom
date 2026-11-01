@@ -3,7 +3,8 @@
   purge-source <name>   delete every listing, raw payload and run from one source (e.g. demo)
   reparse <name>        re-run a source's parser over its stored raw payloads (no network);
                         use after changing parse() or the normalise/data/*.yaml tables
-  dedupe                recompute which listings are the same car, across all sources
+  dedupe                recompute which listings are the same car, across all sources (then revalue)
+  revalue               recompute every market valuation (after editing config/valuation.yaml)
 """
 from __future__ import annotations
 
@@ -77,7 +78,16 @@ def main(argv: list[str]) -> int:
         with get_sessionmaker().begin() as s:
             st = dedupe(s)
         print(f"{st.get('listings', 0)} listings are {st.get('vehicles', 0)} cars; "
-              f"{st.get('multi', 0)} cars are listed more than once.")
+              f"{st.get('multi', 0)} cars are listed more than once. Re-running valuations...")
+        argv = ["revalue"]
+    if argv == ["revalue"]:
+        from carscout.valuation.store import revalue
+
+        with get_sessionmaker().begin() as s:
+            st = revalue(s)
+        print(f"Valued {st.get('regression', 0)} listings by regression and {st.get('comps', 0)} by "
+              f"comparables; {st.get('insufficient', 0)} had too little data; "
+              f"{st.get('excluded', 0)} excluded as junk.")
         return 0
     print(__doc__)
     return 2

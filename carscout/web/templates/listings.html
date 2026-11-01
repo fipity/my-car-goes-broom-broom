@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import source_badge, photo %}
+{% from "_macros.html" import source_badge, photo, deal_badge %}
 {% block content %}
 <form class="filters" method="get" action="/">
   <label class="grow">Search<input type="search" name="q" value="{{ f.q or '' }}" placeholder="e.g. Corolla Ascent"></label>
@@ -25,7 +25,7 @@
   </label>
   <label>Sort
     <select name="sort">
-      {% set sort_names = {"newest": "Newest", "price_asc": "Price: low to high", "price_desc": "Price: high to low", "km_asc": "Lowest km", "year_desc": "Newest year"} %}
+      {% set sort_names = {"newest": "Newest", "price_asc": "Price: low to high", "price_desc": "Price: high to low", "km_asc": "Lowest km", "year_desc": "Newest year", "deal": "Best deal (% below market)"} %}
       {% for s in sorts %}<option value="{{ s }}" {% if f.sort == s %}selected{% endif %}>{{ sort_names[s] }}</option>{% endfor %}
     </select>
   </label>
@@ -50,6 +50,7 @@
       <div class="card-body">
         <h2>{{ l.title }}</h2>
         <p class="price">{{ l.price|money }} <small>{{ l.price_type|price_type }}</small></p>
+        {{ deal_badge(l) }}
         <p class="specs">
           {% if l.odometer_km is not none %}<span>{{ l.odometer_km|km }}</span>{% endif %}
           {% if l.transmission %}<span>{{ l.transmission }}</span>{% endif %}

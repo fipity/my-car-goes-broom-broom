@@ -73,6 +73,7 @@ def sources_file(tmp_path: Path, monkeypatch):
 sources:
   demo:
     label: Demo
+    synthetic: true
     enabled: true
     delay: 0
     jitter: 0

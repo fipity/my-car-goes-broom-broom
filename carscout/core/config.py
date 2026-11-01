@@ -37,6 +37,7 @@ class Settings(BaseSettings):
 
     enabled_sources: str = ""
     sources_file: Path = Path("config/sources.yaml")
+    valuation_file: Path = Path("config/valuation.yaml")
     log_level: str = "INFO"
 
     @property
@@ -61,6 +62,7 @@ class SourceConfig(BaseModel):
     implemented: bool = True
     use_browser: bool = False
     unavailable: str | None = None  # why a source can't be scraped (shown on the Sources page)
+    synthetic: bool = False  # fake data (demo): never a comparable or a duplicate of a real car
     delay: float
     jitter: float
     concurrency: int
@@ -70,6 +72,13 @@ class SourceConfig(BaseModel):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def synthetic_sources() -> set[str]:
+    try:
+        return {name for name, c in load_sources().items() if c.synthetic}
+    except OSError:
+        return {"demo"}
 
 
 def load_sources(settings: Settings | None = None) -> dict[str, SourceConfig]:
@@ -90,6 +99,7 @@ def load_sources(settings: Settings | None = None) -> dict[str, SourceConfig]:
             implemented=entry.get("implemented", True),
             use_browser=entry.get("use_browser", False),
             unavailable=entry.get("unavailable"),
+            synthetic=bool(entry.get("synthetic", False)),
             delay=entry.get("delay", settings.default_delay_seconds),
             jitter=entry.get("jitter", settings.default_jitter_seconds),
             concurrency=entry.get("concurrency", settings.default_concurrency),

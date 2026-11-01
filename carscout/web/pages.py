@@ -21,6 +21,7 @@ from carscout.web.queries import (
     SORTS,
     ListingFilters,
     car_price_history,
+    comparables,
     facet_values,
     next_scheduled_run,
     query_listings,
@@ -108,7 +109,7 @@ def listing_page(listing_id: int, request: Request, db: DB) -> HTMLResponse:
     vehicle = db.get(Vehicle, listing.vehicle_id) if listing.vehicle_id else None
     return _render(request, "listing.html", l=listing, vehicle=vehicle,
                    others=same_car(db, [listing]).get(listing.id, []),
-                   history=car_price_history(db, listing))
+                   history=car_price_history(db, listing), comps=comparables(db, listing))
 
 
 @router.get("/searches", response_class=HTMLResponse)

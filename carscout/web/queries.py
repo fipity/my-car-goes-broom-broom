@@ -11,7 +11,7 @@ from sqlalchemy import Select, case, func, select
 from sqlalchemy.orm import Session
 
 from carscout.core.config import get_settings, load_sources
-from carscout.models import Listing, PriceHistory, RunStatus, ScrapeRun, Source, Vehicle
+from carscout.models import Listing, PriceHistory, RunStatus, ScrapeRun, Source, Valuation, Vehicle
 from carscout.worker.queue import sync_sources
 
 SORTS = {
@@ -20,6 +20,7 @@ SORTS = {
     "price_desc": (Listing.price.desc().nulls_last(),),
     "km_asc": (Listing.odometer_km.asc().nulls_last(),),
     "year_desc": (Listing.year.desc().nulls_last(),),
+    "deal": (Valuation.diff_pct.asc().nulls_last(),),
 }
 
 
@@ -102,6 +103,7 @@ def query_listings(session: Session, f: ListingFilters) -> tuple[list[Listing], 
     ).subquery()
     order = SORTS.get(f.sort, SORTS["newest"])
     stmt = (select(Listing).join(ranked, ranked.c.id == Listing.id).where(ranked.c.rn == 1)
+            .outerjoin(Valuation, Valuation.listing_id == Listing.id)
             .order_by(*order, Listing.id.desc()))
     items = list(session.scalars(stmt.limit(f.per_page).offset((f.page - 1) * f.per_page)))
     return items, total
@@ -117,6 +119,15 @@ def same_car(session: Session, listings: list[Listing]) -> dict[int, list[Listin
         .order_by(Listing.is_active.desc(), Listing.source, Listing.id)
     ))
     return {l.id: [o for o in rows if o.vehicle_id == l.vehicle_id and o.id != l.id] for l in listings}
+
+
+def comparables(session: Session, listing: Listing) -> list[Listing]:
+    """The listings the valuation compared against, closest first."""
+    ids = listing.valuation.comp_ids if listing.valuation else []
+    if not ids:
+        return []
+    found = {l.id: l for l in session.scalars(select(Listing).where(Listing.id.in_(ids)))}
+    return [found[i] for i in ids if i in found]
 
 
 def car_price_history(session: Session, listing: Listing) -> list[tuple[PriceHistory, str]]:

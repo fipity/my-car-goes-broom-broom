@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import source_badge, photo %}
+{% from "_macros.html" import source_badge, photo, deal_badge %}
 {% block title %}{{ l.title }} · CarScout{% endblock %}
 {% block content %}
 <p><a href="javascript:history.back()" class="muted">← Back</a></p>
@@ -11,7 +11,7 @@
     <p>{{ source_badge(l.source, source_labels) }}
       {% if l.is_active %}<span class="pill pill-ok">Active</span>{% else %}<span class="pill pill-off">No longer listed</span>{% endif %}</p>
     <p><a class="btn" href="{{ l.url }}" target="_blank" rel="noopener noreferrer">View on {{ source_labels.get(l.source, l.source) }} ↗</a></p>
-    <p class="muted small">Market value and deal rating arrive in phase 6.</p>
+    {{ deal_badge(l) }}
   </div>
 </article>
 
@@ -32,6 +32,61 @@
     {% endfor %}
   </dl>
 </section>
+
+{% set v = l.valuation %}
+<section>
+  <h2>Market value</h2>
+  {% if l.excluded_reason %}
+    <p>Not rated: this looks like a <strong>{{ l.excluded_reason|replace('_', ' ') }}</strong> listing, so it isn't valued or used as a comparable for other cars.
+       The rules are in <code>config/valuation.yaml</code> under <code>junk</code>.</p>
+  {% elif not v %}
+    <p class="muted">Not valued yet. Valuations are recomputed after each scrape.</p>
+  {% elif v.method == 'insufficient' %}
+    <p class="muted">Not enough data for an estimate: {{ v.details.reason }}.</p>
+  {% else %}
+  <div class="valuation">
+    <div><span class="muted small">Estimated market value</span><br><strong class="big">{{ v.estimate|money }}</strong>
+      <br><span class="muted small">typical range {{ v.p25|money }} – {{ v.p75|money }} ({{ v.details.price_basis }})</span></div>
+    <div><span class="muted small">This listing</span><br><strong class="big">{{ l.price|money }}</strong>
+      <br><span class="small">{{ (v.diff_abs|abs)|money }} {{ 'below' if v.diff_abs < 0 else 'above' }} market ({{ '%+.1f'|format(v.diff_pct) }}%)</span></div>
+    <div><span class="muted small">Confidence</span><br><strong class="big">{{ v.confidence }}</strong></div>
+  </div>
+  <details class="panel">
+    <summary>How this was worked out</summary>
+    <ul class="small">
+      {% if v.method == 'regression' %}
+      <li>Regression over {{ v.details.group_size }} {{ l.make }} {{ l.model }}s (fit R² {{ v.details.r2 }}): price modelled on age, odometer, transmission, seller type, variant and body.
+        Around this car, each year older is worth {{ v.details.per_year_pct }}% and each extra 10,000 km {{ v.details.per_10k_km_pct }}%.</li>
+      {% if v.details.comps_estimate %}<li>Cross-check: the comparables below have a weighted median of {{ v.details.comps_estimate|money }}{% if v.details.estimates_gap_pct is defined %} ({{ v.details.estimates_gap_pct }}% apart){% endif %}.</li>{% endif %}
+      {% else %}
+      <li>Weighted median of the {{ v.n_comps }} comparable cars below. Closer year, odometer and variant count for more. Not enough {{ l.make }} {{ l.model }}s yet for a regression.</li>
+      {% endif %}
+      <li>Comparables: same make and model, criteria "{{ v.details.tier }}"{% if v.details.widened %} (widened because closer matches were scarce){% endif %}{% if v.details.outliers_removed %}; {{ v.details.outliers_removed }} outlier(s) dropped{% endif %}. Each car counts once even if listed on several sites. Sold cars from the last few months are included.</li>
+      {% if v.details.egc_factor is defined %}<li>Drive-away prices are compared on an excl.-govt-charges basis (× {{ v.details.egc_factor }} for {{ l.state }}), then converted back.</li>{% endif %}
+    </ul>
+  </details>
+  {% endif %}
+</section>
+
+{% if comps %}
+<section>
+  <h2>Comparables used <span class="muted small">({{ v.n_comps }}, closest first)</span></h2>
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Car</th><th>Year</th><th>Odometer</th><th>Price</th><th>Source</th><th>State</th></tr></thead>
+    <tbody>
+      {% for c in comps %}
+      <tr><td><a href="/listings/{{ c.id }}">{{ c.variant or c.title }}</a>{% if c.transmission == 'Manual' %} <span class="muted small">manual</span>{% endif %}</td>
+        <td>{{ c.year }}</td><td>{{ c.odometer_km|km if c.odometer_km is not none else '' }}</td>
+        <td>{{ c.price|money }} <small>{{ c.price_type|price_type }}</small></td>
+        <td>{{ source_badge(c.source, source_labels) }}{% if not c.is_active %} <span class="pill pill-off">sold</span>{% endif %}</td>
+        <td>{{ c.state or '' }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
 
 {% if others %}
 <section>
