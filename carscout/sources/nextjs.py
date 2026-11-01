@@ -112,3 +112,51 @@ def json_ld(html: str) -> list[Any]:
         except json.JSONDecodeError:
             continue
     return out
+
+
+# ---- Nuxt 3 (__NUXT_DATA__) -----------------------------------------------------------------
+_NUXT = re.compile(r'<script[^>]*id="__NUXT_DATA__"[^>]*>(.*?)</script>', re.S)
+_NUXT_WRAPPERS = {"Reactive", "ShallowReactive", "Ref", "ShallowRef", "EmptyRef", "EmptyShallowRef"}
+
+
+def nuxt_data(html: str) -> Any | None:
+    """Decode Nuxt 3's payload: a flat JSON array where containers hold *indices* into the array,
+    and ["Reactive", i]-style markers wrap values. Returns the revived root (or None)."""
+    m = _NUXT.search(html)
+    if not m:
+        return None
+    try:
+        arr = json.loads(m.group(1))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(arr, list) or not arr:
+        return None
+    cache: dict[int, Any] = {}
+
+    def revive(i: Any, depth: int = 0) -> Any:
+        if not isinstance(i, int) or not 0 <= i < len(arr) or depth > 80:
+            return None
+        if i in cache:
+            return cache[i]
+        v = arr[i]
+        if isinstance(v, dict):
+            out: dict[str, Any] = {}
+            cache[i] = out  # before recursing, so cycles terminate
+            for k, x in v.items():
+                out[k] = revive(x, depth + 1)
+            return out
+        if isinstance(v, list):
+            if v and isinstance(v[0], str) and v[0] in _NUXT_WRAPPERS:
+                res = revive(v[1], depth + 1) if len(v) > 1 else None
+            elif v and isinstance(v[0], str) and v[0] == "Date":
+                res = v[1] if len(v) > 1 else None
+            elif v and isinstance(v[0], str) and v[0] in ("Set", "Map"):
+                res = [revive(x, depth + 1) for x in v[1:]]
+            else:
+                res = [revive(x, depth + 1) for x in v]
+            cache[i] = res
+            return res
+        cache[i] = v
+        return v
+
+    return revive(0)

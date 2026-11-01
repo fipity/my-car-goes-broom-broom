@@ -1,0 +1,38 @@
+User-agent: trovitBot
+Disallow: /
+
+User-agent: *
+Crawl-delay: 1
+Disallow: /buy-a-car*/unleaded-fuel*
+Disallow: /buy-a-car*/leaded*
+Disallow: /buy-a-car*/premium-fuel*
+Disallow: /buy-a-car*/other-fuel-type*
+Disallow: /buy-a-car*/other-body-type*
+Disallow: /buy-a-car*/other-drive-type*
+Disallow: /buy-a-car*/available-to-order*
+Disallow: /buy-a-car/*_*
+
+# Query params
+Disallow: *?store=*
+Disallow: *&store=*
+Disallow: *?sortBy=*
+Disallow: *&sortBy=*
+Disallow: *?searchLimit=*
+Disallow: *&searchLimit=*
+Disallow: *?dealerId=*
+Disallow: *&dealerId=*
+Disallow: *?distance=*
+Disallow: *&distance=*
+Disallow: *?cto_pld*
+Disallow: *&cto_pld*
+Disallow: /*?ref*
+Disallow: /*&ref*
+Disallow: /*?itemid=*
+Disallow: /*&itemid=*
+Disallow: */search?query=*
+Disallow: *?keywords=*
+Disallow: *&keywords=*
+Disallow: *?makeModel=*
+Disallow: *&makeModel=*
+
+Sitemap: https://www.carsguide.com.au/xmlsitemap/sitemap/index.xml

@@ -40,6 +40,15 @@ sources:
       max_pages: 15            # 20 cars a page; stops early (and skips the gone-check) beyond this
       detail_max_age_days: 7   # re-fetch a car's detail page at least this often
 
+  carsguide:
+    label: CarsGuide
+    enabled: true
+    delay: 4             # robots.txt asks for Crawl-delay: 1
+    jitter: 2
+    options:
+      max_pages: 20      # 26 cars a page, per search per run (year/price/state narrow it first)
+      # (autotrader.com.au is the same platform and stock, so it isn't a separate source)
+
   drive:
     label: Drive
     enabled: true

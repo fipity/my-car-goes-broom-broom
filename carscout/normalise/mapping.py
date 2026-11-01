@@ -161,7 +161,7 @@ def drivetrain_family(value: str | None) -> str | None:
 
 
 # Words sites put in the variant that are really drivetrain, fuel, transmission or model year.
-_NOT_BADGE = re.compile(r"\b(?:hybrid|hybr|petrol|diesel|electric|phev|2wd|awd|4wd|4x4|4x2|fwd|rwd|"
+_NOT_BADGE = re.compile(r"\b(?:hybrid|hybr|hev|petrol|diesel|electric|phev|2wd|awd|4wd|4x4|4x2|fwd|rwd|"
                         r"auto|automatic|manual|cvt|my\d{2}|full size spare|e-?four)\b", re.I)
 
 

@@ -178,3 +178,25 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
 - `facebook` stays `enabled: false`, `implemented: false`, with an `unavailable:` note shown on the Sources page.
 - A test (`tests/test_robots.py::test_facebook_marketplace_refused`, using a robots.txt excerpt fixture) proves the client refuses Marketplace URLs without requesting them.
 - **Final source line-up:** Cars24 (full), Carsales (first-page cards with fan-out). Gumtree, Drive and Facebook are unavailable.
+
+## Other Australian sites (2026-11-01)
+
+- **Probed** (robots.txt first, polite, no evasion):
+  - **CarsGuide** ✅ added.
+  - **Autotrader**: same platform and stock as CarsGuide (42 of 52 listing ids identical), so not added.
+  - **Carma**: listings are rendered HTML only (no data in the page), small stock, and make/model pages are disallowed. Skipped.
+  - **Pickles**: auctions (bids aren't asking prices), and detail pages are disallowed. Skipped.
+  - **CarExpert**: new-car buying service. Skipped.
+  - **Toyota certified used**: Cloudflare 403. Unavailable.
+- **CarsGuide plugin** (`sources/carsguide.py`):
+  - Paths `/buy-a-car/<make>/<model>[/<state>][/<from>-<to>|over-<y>|under-<y>][/under-$<max>]`, `?page=N`, 26 a page. Data from `__NUXT_DATA__` (new `nextjs.nuxt_data` decoder), `pinia.results`.
+  - The final URL and the page's reported filterList are checked: a wrong segment order silently redirects to all cars. If the narrowed path isn't taken, it falls back to a plainer one.
+  - robots.txt disallows any `/buy-a-car` URL with `_`, so `?year_from=` can't be used; odometer is filtered client-side.
+  - Price: drive-away flag, else "Excl. Gov. Charges" (EGC).
+  - Gone detection: a removed listing redirects to `/buy-a-car?removed=true`.
+  - `max_pages: 20`, delay 4s (Crawl-delay 1).
+- **Live:**
+  - Corolla 2015–2020 VIC: `/vic/2015-2020` gave 73 results in 3 pages; 51 matched under 120k km, in 4 requests, not truncated.
+  - RAV4 (all states): 1,513 results; 200 stored in 9 requests. The stop was the per-run `max_results` 200 cap; coverage grows over runs.
+- Clean-up: demo purged and switched off; the test search "Corolla, any year, all states" was deleted (its listings are kept).
+- `variant_core` also ignores "Hev". 125 tests.
