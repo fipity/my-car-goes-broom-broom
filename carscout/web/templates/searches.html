@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import source_badge, state_pill %}
+{% from "_macros.html" import source_badge, state_pill, search_form, search_summary as summary with context %}
 {% block title %}Searches · CarScout{% endblock %}
 {% block content %}
 <h1>Saved searches</h1>
@@ -8,23 +8,15 @@
 {% if searches %}
 <ul class="rows">
   {% for s in searches %}
+  {% set c = changes[s.id] %}
   <li class="row">
     <div class="grow">
-      <strong>{{ s.name }}</strong>
-      <p class="muted small">
-        {% set p = s.params %}
-        {{ [p.make, p.model]|select|join(' ') or 'Any make' }}
-        {% if p.year_min or p.year_max %} · {{ p.year_min or '…' }}–{{ p.year_max or '…' }}{% endif %}
-        {% if p.km_max %} · under {{ p.km_max|km }}{% endif %}
-        {% if p.price_max %} · under {{ p.price_max|money }}{% endif %}
-        {% if p.states %} · {{ p.states|join(', ') }}{% endif %}
-        · {{ 'scheduled' if s.schedule_enabled else 'manual only' }}
-      </p>
+      <a href="/searches/{{ s.id }}"><strong>{{ s.name }}</strong></a>
+      {% if c.new %}<a class="pill pill-ok" href="/searches/{{ s.id }}?view=new">{{ c.new|length }} new</a>{% endif %}
+      {% if c.drops %}<a class="pill pill-running" href="/searches/{{ s.id }}?view=drops">{{ c.drops|length }} price drop{{ '' if c.drops|length == 1 else 's' }}</a>{% endif %}
+      <p class="muted small">{{ summary(s) }} · {{ c.active }} car{{ '' if c.active == 1 else 's' }} matching</p>
     </div>
     <form method="post" action="/searches/{{ s.id }}/run"><button type="submit">Run now</button></form>
-    <form method="post" action="/searches/{{ s.id }}/delete" onsubmit="return confirm('Delete this search? Listings are kept.')">
-      <button type="submit" class="ghost danger" aria-label="Delete {{ s.name }}">Delete</button>
-    </form>
   </li>
   {% endfor %}
 </ul>
@@ -34,20 +26,7 @@
 
 <details class="panel" {% if not searches %}open{% endif %}>
   <summary>New saved search</summary>
-  <form method="post" action="/searches" class="form-grid">
-    <label class="span2">Name<input name="name" required maxlength="200" placeholder="Corolla 2015–2020 VIC"></label>
-    <label>Make<input name="make" placeholder="Toyota"></label>
-    <label>Model<input name="model" placeholder="Corolla"></label>
-    <label>Year from<input name="year_min" inputmode="numeric" placeholder="2015"></label>
-    <label>Year to<input name="year_max" inputmode="numeric" placeholder="2020"></label>
-    <label>Max km<input name="km_max" inputmode="numeric" placeholder="120000"></label>
-    <label>Max price<input name="price_max" inputmode="numeric" placeholder="$"></label>
-    <fieldset class="span2"><legend>States (none = all)</legend>
-      {% for st in states %}<label class="chk"><input type="checkbox" name="states" value="{{ st }}"> {{ st }}</label>{% endfor %}
-    </fieldset>
-    <label class="chk span2"><input type="checkbox" name="schedule_enabled" value="1" checked> Run on the schedule</label>
-    <div class="span2"><button type="submit">Save search</button></div>
-  </form>
+  {{ search_form("/searches", states, source_choices) }}
 </details>
 
 <h2>Recent runs</h2>

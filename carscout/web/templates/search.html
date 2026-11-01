@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_macros.html" import listing_card, search_form, search_summary, source_badge, state_pill with context %}
+{% block title %}{{ s.name }} · CarScout{% endblock %}
+{% block content %}
+<p><a href="/searches" class="muted">← All searches</a></p>
+<div class="search-head">
+  <div class="grow">
+    <h1>{{ s.name }}</h1>
+    <p class="muted small">{{ search_summary(s) }}</p>
+    <p class="small">{{ ch.active }} car{{ '' if ch.active == 1 else 's' }} matching · changes since {{ ch.since|local('%a %d %b %H:%M') }}</p>
+  </div>
+  <div class="search-actions">
+    <form method="post" action="/searches/{{ s.id }}/run"><button type="submit">Run now</button></form>
+    {% if ch.new or ch.drops %}<form method="post" action="/searches/{{ s.id }}/seen"><button type="submit" class="ghost">Mark as seen</button></form>{% endif %}
+  </div>
+</div>
+
+<nav class="tabs" aria-label="Views">
+  <a href="?view=new" {% if view == 'new' %}aria-current="page"{% endif %}>New <span class="count">{{ ch.new|length }}</span></a>
+  <a href="?view=drops" {% if view == 'drops' %}aria-current="page"{% endif %}>Price drops <span class="count">{{ ch.drops|length }}</span></a>
+  <a href="?view=all" {% if view == 'all' %}aria-current="page"{% endif %}>All <span class="count">{{ ch.active }}</span></a>
+</nav>
+
+{% if view == 'all' %}
+<form method="get" class="inline-sort"><input type="hidden" name="view" value="all">
+  <label>Sort <select name="sort" onchange="this.form.submit()">
+    {% for k, t in [("deal", "Best deal"), ("price_asc", "Price: low to high"), ("newest", "Newest"), ("km_asc", "Lowest km"), ("year_desc", "Newest year")] %}
+    <option value="{{ k }}" {% if sort == k %}selected{% endif %}>{{ t }}</option>{% endfor %}
+  </select></label><noscript><button type="submit">Sort</button></noscript>
+</form>
+{% endif %}
+
+{% if items %}
+<ul class="grid">
+  {% for l in items %}
+  {% set d = drops.get(l.id) if view == 'drops' else none %}
+  {{ listing_card(l, others.get(l.id, []), note=("Dropped " ~ (d.amount|money) ~ " from " ~ (d.was|money) ~ ", " ~ (d.at|ago)) if d else none) }}
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">
+  {% if view == 'new' %}No new listings since {{ ch.since|local('%d %b %H:%M') }}.
+  {% elif view == 'drops' %}No price drops since {{ ch.since|local('%d %b %H:%M') }}.
+  {% else %}Nothing matches yet. Press <em>Run now</em>; results appear as each source finishes.{% endif %}
+</p>
+{% endif %}
+
+<details class="panel">
+  <summary>Edit this search</summary>
+  <p class="muted small">Changing the criteria resets which listings this search tracks; the listings themselves are kept.</p>
+  {{ search_form("/searches/" ~ s.id ~ "/edit", states, source_choices, s=s, submit="Save changes") }}
+  <form method="post" action="/searches/{{ s.id }}/delete" onsubmit="return confirm('Delete this search? Listings are kept.')">
+    <button type="submit" class="ghost danger">Delete search</button>
+  </form>
+</details>
+
+{% if runs %}
+<h2>Recent runs</h2>
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Source</th><th>Status</th><th>Found</th><th>New</th><th>Gone</th><th>When</th><th>Detail</th></tr></thead>
+  <tbody>
+    {% for r in runs %}
+    <tr><td>{{ source_badge(r.source, source_labels) }}</td><td>{{ state_pill(r.status, r.status|capitalize) }}</td>
+      <td>{{ r.found }}</td><td>{{ r.new }}</td><td>{{ r.gone or '' }}</td>
+      <td>{{ (r.finished_at or r.started_at or r.queued_at)|ago }}</td><td class="small">{{ r.error or '' }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

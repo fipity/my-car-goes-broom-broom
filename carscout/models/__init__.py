@@ -20,6 +20,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -84,6 +85,8 @@ class SavedSearch(Base):
     sources: Mapped[list[str] | None] = mapped_column(ARRAY(String(32)))  # None = all enabled
     schedule_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = _now()
+    # "New" and "price drop" on the search's page are relative to this; "Mark as seen" moves it.
+    seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     runs: Mapped[list[ScrapeRun]] = relationship(back_populates="saved_search", passive_deletes=True)
 
@@ -180,6 +183,8 @@ class Listing(Base):
     suburb: Mapped[str | None] = mapped_column(String(64))
     state: Mapped[str | None] = mapped_column(String(3), index=True)
     postcode: Mapped[str | None] = mapped_column(String(4))
+    lat: Mapped[float | None] = mapped_column(Float)  # from the source, or suburb + state lookup
+    lon: Mapped[float | None] = mapped_column(Float)
     images: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     rego: Mapped[str | None] = mapped_column(String(16))
@@ -261,9 +266,10 @@ class Valuation(Base):
 
 
 class Postcode(Base):
-    """For radius search (phase 7)."""
+    """Suburb coordinates for radius search (carscout/geo/postcodes.py)."""
 
     __tablename__ = "postcodes"
+    __table_args__ = (Index("ix_postcodes_suburb_state", text("lower(suburb)"), "state"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     postcode: Mapped[str] = mapped_column(String(4), index=True, nullable=False)

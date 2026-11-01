@@ -41,7 +41,8 @@ async def test_full_flow_via_api(client, sm):
     assert [r["source"] for r in runs] == ["demo"] and runs[0]["status"] == "queued"
     await execute_run(sm, runs[0]["id"])
 
-    page = client.get("/api/listings", params={"make": "toyota", "sort": "price_asc"}).json()
+    assert client.get("/api/listings").json()["total"] == 0  # demo (fake) data is hidden by default
+    page = client.get("/api/listings", params={"make": "toyota", "sort": "price_asc", "source": "demo"}).json()
     assert page["total"] == 5
     prices = [i["price"] for i in page["items"]]
     assert prices == sorted(prices)
@@ -77,7 +78,8 @@ async def test_pages_render(client, sm):
         run_id = s.scalars(select(ScrapeRun.id)).one()
     await execute_run(sm, run_id)
 
-    html = client.get("/?sort=price_desc&price_max=abc").text  # junk number ignored
+    assert "only shown when you choose" in client.get("/").text  # demo hidden by default
+    html = client.get("/?sort=price_desc&price_max=abc&source=demo").text  # junk number ignored
     assert "5 cars" in html and "Mazda 3" in html
     assert client.get("/listings/1").status_code == 200
     assert client.get("/listings/424242").status_code == 404

@@ -12,8 +12,8 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
 | 4 | Remaining scrapers, one at a time | ✅ Done 2026-11-01: Carsales live; Gumtree and Drive unavailable (bot protection) |
 | 5 | Dedupe + price history | ✅ Done 2026-11-01 |
 | 6 | Valuation module + tests | ✅ Done 2026-11-01 |
-| 7 | Full UI: filters, detail, saved-search alerts, sources page | ⏭ Next |
-| 8 | Facebook Marketplace (experimental) | |
+| 7 | Full UI: filters, detail, saved-search alerts, sources page | ✅ Done 2026-11-01 |
+| 8 | Facebook Marketplace (experimental) | ⏭ Optional |
 
 ## Architecture (approved in phase 1)
 
@@ -134,3 +134,29 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
   - Labels: Fair 87, Good 29, Above 30, Great 5, Overpriced 8.
   - The "Great deals" are old, high-km cars with Low/Medium confidence, which is expected.
 - **Phase 7:** add a deal-rating filter. Saved-search "new / price drop" views can use valuations too.
+
+## Phase 7 notes
+
+- **Filters (list and API):** variant, year/price/km ranges, body, transmission, fuel, seller, source, deal labels (multi), and postcode + radius. New sorts: `deal` and `distance`.
+  - The phone layout keeps the main filters visible and puts the rest under a "More filters" panel (two columns, open when any are set).
+- **Distance:**
+  - GeoNames AU postcodes (CC BY 4.0) are in `carscout/geo/data/au_postcodes.tsv.gz`, loaded into `postcodes` on API start when the table is empty (`cli load-postcodes [--if-empty]`).
+  - Listings gained `lat`/`lon`: Cars24 coordinates come from its detail page (parser v4); otherwise from suburb + state on store/reparse, which also fills a missing postcode.
+  - Distance is haversine in SQL (no PostGIS). Carsales has no suburb, so with a radius set its listings count as in range when they're in the postcode's state; the UI says so.
+- **Saved searches:**
+  - `/searches/{id}` has New / Price drops / All tabs and "Mark as seen" (`saved_searches.seen_at`).
+  - "New" uses `listings.first_seen` (new to CarScout), so editing a search doesn't flood it.
+  - Price drops come from `price_history` with lag() since `seen_at`: the price before the first change in the window vs now, biggest drop per car.
+  - Editing (HTML form, `PATCH /api/searches/{id}`) clears the search's `search_listings` when params or sources change, as noted in phase 3.
+  - The search form gained variant, body, transmission, min price and source checkboxes.
+  - API: `GET /api/searches/{id}/changes`, `POST /api/searches/{id}/seen`.
+- **Price chart:** `web/charts.py` builds a server-side SVG step line per source.
+  - Fixed colour slot per source (validated with the dataviz palette checks for both themes: CVD ΔE ≥ 9.2, normal-vision ≥ 20.9). The light-mode aqua is under 3:1 contrast, which is covered by the legend, end labels and the table.
+  - Hover titles on points.
+  - Drawn only when some listing's price actually changed.
+  - A 420-unit canvas keeps text readable on phones.
+  - Checked by screenshots in light and dark.
+- **Sources page:** active listings per source (linked) and a strip of the last 8 runs.
+- **Phone polish:** compact result rows (photo left), two-column specs and form fields.
+- **Demo:** synthetic sources are hidden from listings unless chosen as the source (a fake car was topping "Best deal").
+- **Tests:** 113. New `tests/test_phase7_ui.py` covers filters, radius, location fill, search changes/seen/edit, the chart, and source counts.

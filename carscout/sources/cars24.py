@@ -93,7 +93,7 @@ def _fingerprint(card: dict[str, Any]) -> tuple[Any, ...]:
 
 class Plugin(SourcePlugin):
     name = "cars24"
-    parser_version = 3  # 2: model pattern rules (Mercedes "C200" -> "C-Class"); 3: badge case
+    parser_version = 4  # 2: Mercedes "C200" -> "C-Class"; 3: badge case; 4: coordinates
 
     # -- search ----------------------------------------------------------------------------
     def search_paths(self, params: SearchParams) -> list[str]:
@@ -276,6 +276,8 @@ class Plugin(SourcePlugin):
             suburb=(d.get("suburb") or "").strip() or None,
             state=state,
             postcode=None,
+            lat=d.get("latitude") if isinstance(d.get("latitude"), (int, float)) else None,
+            lon=d.get("longitude") if isinstance(d.get("longitude"), (int, float)) else None,
             images=images[:40],
             description=description,
             rego=None,

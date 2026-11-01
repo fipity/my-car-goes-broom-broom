@@ -9,6 +9,8 @@ case "$1" in
       [ "$i" -ge 15 ] && echo "migrations failed after $i attempts" >&2 && exit 1
       sleep 2
     done
+    # Postcode coordinates for radius search: loaded once, on first start.
+    python -m carscout.cli load-postcodes --if-empty
     exec python -m carscout.web
     ;;
   worker)

@@ -17,12 +17,18 @@ from carscout.core.config import get_settings, load_sources
 from carscout.core.db import get_session
 from carscout.models import Listing, SavedSearch, ScrapeRun, Source, Vehicle
 from carscout.sources.base import SearchParams
+from carscout.geo.postcodes import postcode_centre
+from carscout.web.charts import price_chart
 from carscout.web.queries import (
     SORTS,
     ListingFilters,
     car_price_history,
     comparables,
     facet_values,
+    more_filters_set,
+    search_changes,
+    search_listings,
+    update_search,
     next_scheduled_run,
     query_listings,
     same_car,
@@ -92,13 +98,15 @@ def _render(request: Request, name: str, **ctx: Any) -> HTMLResponse:
 
 @router.get("/", response_class=HTMLResponse)
 def listings_page(request: Request, db: DB) -> HTMLResponse:
-    f = ListingFilters.from_query(dict(request.query_params))
+    f = ListingFilters.from_query(request.query_params)
     items, total = query_listings(db, f)
     pages = max(1, -(-total // f.per_page))
-    base = {k: v for k, v in request.query_params.items() if k not in ("page", "msg") and v}
+    base = [(k, v) for k, v in request.query_params.multi_items() if k not in ("page", "msg") and v]
     return _render(request, "listings.html", items=items, total=total, f=f, pages=pages,
-                   facets=facet_values(db), sorts=list(SORTS), others=same_car(db, items),
-                   page_url=lambda p: "/?" + urlencode({**base, "page": p}))
+                   facets=facet_values(db), sorts=[*SORTS, "distance"], others=same_car(db, items),
+                   more_open=more_filters_set(f),
+                   geo_ok=bool(f.postcode and postcode_centre(db, f.postcode)),
+                   page_url=lambda p: "/?" + urlencode([*base, ("page", p)]))
 
 
 @router.get("/listings/{listing_id}", response_class=HTMLResponse)
@@ -107,9 +115,40 @@ def listing_page(listing_id: int, request: Request, db: DB) -> HTMLResponse:
     if not listing:
         raise HTTPException(404, "Listing not found")
     vehicle = db.get(Vehicle, listing.vehicle_id) if listing.vehicle_id else None
-    return _render(request, "listing.html", l=listing, vehicle=vehicle,
-                   others=same_car(db, [listing]).get(listing.id, []),
-                   history=car_price_history(db, listing), comps=comparables(db, listing))
+    others = same_car(db, [listing]).get(listing.id, [])
+    history = car_price_history(db, listing)
+    return _render(request, "listing.html", l=listing, vehicle=vehicle, others=others,
+                   history=history, chart=price_chart(history, [listing, *others]),
+                   comps=comparables(db, listing))
+
+
+STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"]
+
+
+def _source_choices() -> list[tuple[str, str]]:
+    """Sources a search can be limited to: working real ones first, then demo."""
+    cfgs = load_sources().values()
+    return [(c.name, c.label) for c in sorted(cfgs, key=lambda c: c.synthetic)
+            if c.enabled and c.implemented]
+
+
+def _search_from_form(form: Any) -> tuple[str, SearchParams, list[str] | None, bool]:
+    def num(name: str) -> int | None:
+        v = str(form.get(name) or "").replace(",", "").replace("$", "").strip()
+        return int(v) if v.isdigit() else None
+
+    def text(name: str) -> str | None:
+        return str(form.get(name) or "").strip() or None
+
+    params = SearchParams(
+        make=text("make"), model=text("model"), variant=text("variant"), body_type=text("body_type"),
+        transmission=text("transmission"), year_min=num("year_min"), year_max=num("year_max"),
+        km_max=num("km_max"), price_min=num("price_min"), price_max=num("price_max"),
+        states=[x for x in form.getlist("states") if x in STATES],
+    )
+    known = {n for n, _ in _source_choices()}
+    sources = [x for x in form.getlist("sources") if x in known] or None
+    return (text("name") or "Untitled")[:200], params, sources, bool(form.get("schedule_enabled"))
 
 
 @router.get("/searches", response_class=HTMLResponse)
@@ -117,34 +156,56 @@ def searches_page(request: Request, db: DB) -> HTMLResponse:
     searches = list(db.scalars(select(SavedSearch).order_by(SavedSearch.id)))
     runs = list(db.scalars(select(ScrapeRun).order_by(ScrapeRun.id.desc()).limit(30)))
     return _render(request, "searches.html", searches=searches, runs=runs,
-                   next_run=next_scheduled_run(),
-                   states=["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"])
+                   changes={s.id: search_changes(db, s) for s in searches},
+                   next_run=next_scheduled_run(), states=STATES, source_choices=_source_choices())
 
 
 @router.post("/searches")
-def create_search(
-    db: DB,
-    name: Annotated[str, Form()],
-    make: Annotated[str, Form()] = "",
-    model: Annotated[str, Form()] = "",
-    year_min: Annotated[str, Form()] = "",
-    year_max: Annotated[str, Form()] = "",
-    km_max: Annotated[str, Form()] = "",
-    price_max: Annotated[str, Form()] = "",
-    states: Annotated[list[str] | None, Form()] = None,
-    schedule_enabled: Annotated[str, Form()] = "",
-) -> RedirectResponse:
-    def num(v: str) -> int | None:
-        v = v.replace(",", "").replace("$", "").strip()
-        return int(v) if v.isdigit() else None
-
-    params = SearchParams(make=make.strip() or None, model=model.strip() or None,
-                          year_min=num(year_min), year_max=num(year_max), km_max=num(km_max),
-                          price_max=num(price_max), states=states or [])
-    db.add(SavedSearch(name=name.strip()[:200] or "Untitled", params=params.to_dict(),
-                       schedule_enabled=bool(schedule_enabled)))
+async def create_search(request: Request, db: DB) -> RedirectResponse:
+    name, params, sources, scheduled = _search_from_form(await request.form())
+    search = SavedSearch(name=name, params=params.to_dict(), sources=sources, schedule_enabled=scheduled)
+    db.add(search)
     db.commit()
-    return _redirect("/searches", f"Saved “{name.strip()}”.")
+    return _redirect(f"/searches/{search.id}", f"Saved “{name}”. Press Run now to fetch listings.")
+
+
+@router.get("/searches/{search_id}", response_class=HTMLResponse)
+def search_page(search_id: int, request: Request, db: DB, view: str = "", sort: str = "deal") -> HTMLResponse:
+    search = db.get(SavedSearch, search_id)
+    if not search:
+        raise HTTPException(404, "Search not found")
+    ch = search_changes(db, search)
+    if view not in ("new", "drops", "all"):
+        view = "new" if ch.new else "drops" if ch.drops else "all"
+    items = search_listings(db, search, sort) if view == "all" else ch.new if view == "new" else [d.listing for d in ch.drops]
+    runs = list(db.scalars(select(ScrapeRun).where(ScrapeRun.saved_search_id == search_id)
+                           .order_by(ScrapeRun.id.desc()).limit(10)))
+    return _render(request, "search.html", s=search, ch=ch, view=view, sort=sort, items=items,
+                   drops={d.listing.id: d for d in ch.drops}, others=same_car(db, items), runs=runs,
+                   states=STATES, source_choices=_source_choices())
+
+
+@router.post("/searches/{search_id}/edit")
+async def edit_search(search_id: int, request: Request, db: DB) -> RedirectResponse:
+    search = db.get(SavedSearch, search_id)
+    if not search:
+        raise HTTPException(404)
+    name, params, sources, scheduled = _search_from_form(await request.form())
+    changed = update_search(db, search, name=name, params=params.to_dict(), sources=sources,
+                            schedule_enabled=scheduled)
+    db.commit()
+    msg = "Search updated." + (" Its criteria changed, so press Run now to refresh the matches." if changed else "")
+    return _redirect(f"/searches/{search_id}", msg)
+
+
+@router.post("/searches/{search_id}/seen")
+def mark_seen(search_id: int, db: DB) -> RedirectResponse:
+    search = db.get(SavedSearch, search_id)
+    if not search:
+        raise HTTPException(404)
+    search.seen_at = datetime.now(UTC)
+    db.commit()
+    return _redirect(f"/searches/{search_id}?view=all", "Marked as seen. New listings and price drops from now on will show here.")
 
 
 @router.post("/searches/{search_id}/run")
@@ -154,9 +215,10 @@ def run_search(search_id: int, db: DB) -> RedirectResponse:
         raise HTTPException(404)
     runs = enqueue_search(db, search)
     db.commit()
+    back = f"/searches/{search_id}"
     if not runs:
-        return _redirect("/searches", "Nothing queued: no enabled sources, or it's already running.")
-    return _redirect("/searches", f"Queued {len(runs)} source(s): {', '.join(r.source for r in runs)}.")
+        return _redirect(back, "Nothing queued: no enabled sources, or it's already running.")
+    return _redirect(back, f"Queued {len(runs)} source(s): {', '.join(r.source for r in runs)}. Refresh in a minute or two.")
 
 
 @router.post("/searches/{search_id}/delete")

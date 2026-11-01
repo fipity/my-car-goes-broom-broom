@@ -119,6 +119,29 @@
 
 <section>
   <h2>Price history</h2>
+  {% if chart %}
+  {% if chart.series|length > 1 %}
+  <p class="legend" aria-hidden="true">{% for sr in chart.series %}<span><span class="key k{{ sr.slot }}"></span>{{ sr.label }}{% if not sr.active %} (gone){% endif %}</span>{% endfor %}</p>
+  {% endif %}
+  <svg class="chart" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img"
+       aria-label="Price over time{% for sr in chart.series %}, {{ sr.label }} now {{ sr.end_price|money }}{% endfor %}. The table below lists every change.">
+    {% set x0, y0, x1, y1 = chart.plot %}
+    <g class="grid">
+      {% for y, v in chart.y_ticks %}<line x1="{{ x0 }}" x2="{{ x1 }}" y1="{{ y }}" y2="{{ y }}"/>
+      <text x="{{ x0 - 6 }}" y="{{ y + 4 }}" text-anchor="end">{{ v|money }}</text>{% endfor %}
+    </g>
+    {% for x, t in chart.x_ticks %}<text x="{{ x }}" y="{{ y1 + 17 }}" text-anchor="{{ 'start' if loop.first else 'end' }}">{{ t|local('%d %b') }}</text>{% endfor %}
+    {% for sr in chart.series %}
+    <path class="line s{{ sr.slot }}{% if not sr.active %} gone{% endif %}" d="{{ sr.path }}"/>
+    {% for p in sr.points %}
+    <g class="pt" tabindex="0"><circle class="hit" cx="{{ p.x }}" cy="{{ p.y }}" r="11"/>
+      <circle class="dot s{{ sr.slot }}" cx="{{ p.x }}" cy="{{ p.y }}" r="4"/>
+      <title>{{ sr.label }}: {{ p.price|money }} on {{ p.when|local('%d %b %Y') }}</title></g>
+    {% endfor %}
+    {% if sr.show_label %}<text class="end-label" x="{{ sr.end_x + 8 }}" y="{{ sr.label_y + 4 }}">{{ sr.end_price|money }}</text>{% endif %}
+    {% endfor %}
+  </svg>
+  {% endif %}
   <table class="table">
     <thead><tr><th>When</th>{% if others %}<th>Source</th>{% endif %}<th>Price</th><th>Type</th></tr></thead>
     <tbody>

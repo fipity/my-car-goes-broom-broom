@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import source_badge, photo, deal_badge %}
+{% from "_macros.html" import listing_card with context %}
 {% block content %}
 <form class="filters" method="get" action="/">
   <label class="grow">Search<input type="search" name="q" value="{{ f.q or '' }}" placeholder="e.g. Corolla Ascent"></label>
@@ -17,19 +17,58 @@
       {% for s in facets.states %}<option {% if f.state and f.state|upper == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
     </select>
   </label>
-  <label>Source
-    <select name="source">
-      <option value="">All</option>
-      {% for s in facets.sources %}<option value="{{ s }}" {% if f.source == s %}selected{% endif %}>{{ source_labels.get(s, s) }}</option>{% endfor %}
-    </select>
-  </label>
   <label>Sort
     <select name="sort">
-      {% set sort_names = {"newest": "Newest", "price_asc": "Price: low to high", "price_desc": "Price: high to low", "km_asc": "Lowest km", "year_desc": "Newest year", "deal": "Best deal (% below market)"} %}
+      {% set sort_names = {"newest": "Newest", "deal": "Best deal", "price_asc": "Price: low to high", "price_desc": "Price: high to low", "km_asc": "Lowest km", "year_desc": "Newest year", "distance": "Nearest"} %}
       {% for s in sorts %}<option value="{{ s }}" {% if f.sort == s %}selected{% endif %}>{{ sort_names[s] }}</option>{% endfor %}
     </select>
   </label>
-  <label class="chk"><input type="checkbox" name="include_inactive" value="1" {% if f.include_inactive %}checked{% endif %}> Include sold</label>
+
+  <details class="more" {% if more_open %}open{% endif %}>
+    <summary>More filters{% if more_open %} <span class="pill">{{ more_open }} set</span>{% endif %}</summary>
+    <div class="more-grid">
+      <label>Variant<input name="variant" value="{{ f.variant or '' }}" placeholder="e.g. ZR"></label>
+      <label>Year from<input name="year_min" inputmode="numeric" value="{{ f.year_min or '' }}" placeholder="2015"></label>
+      <label>Year to<input name="year_max" inputmode="numeric" value="{{ f.year_max or '' }}" placeholder="2020"></label>
+      <label>Min price<input name="price_min" inputmode="numeric" value="{{ f.price_min or '' }}" placeholder="$"></label>
+      <label>Min km<input name="km_min" inputmode="numeric" value="{{ f.km_min or '' }}"></label>
+      <label>Max km<input name="km_max" inputmode="numeric" value="{{ f.km_max or '' }}" placeholder="120000"></label>
+      {% for name, label, values in [("body_type", "Body", facets.bodies), ("transmission", "Transmission", facets.transmissions), ("fuel_type", "Fuel", facets.fuels)] %}
+      <label>{{ label }}
+        <select name="{{ name }}">
+          <option value="">Any</option>
+          {% for v in values %}<option {% if f[name] and f[name]|lower == v|lower %}selected{% endif %}>{{ v }}</option>{% endfor %}
+        </select>
+      </label>
+      {% endfor %}
+      <label>Seller
+        <select name="seller_type">
+          <option value="">Any</option>
+          {% for v, t in [("dealer", "Dealer"), ("private", "Private")] %}<option value="{{ v }}" {% if f.seller_type == v %}selected{% endif %}>{{ t }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Source
+        <select name="source">
+          <option value="">All</option>
+          {% for s in facets.sources %}<option value="{{ s }}" {% if f.source == s %}selected{% endif %}>{{ source_labels.get(s, s) }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Near postcode<input name="postcode" inputmode="numeric" maxlength="4" value="{{ f.postcode or '' }}" placeholder="3000"></label>
+      <label>Within
+        <select name="radius_km">
+          <option value="">Any distance</option>
+          {% for r in [10, 25, 50, 100, 200, 500] %}<option value="{{ r }}" {% if f.radius_km == r %}selected{% endif %}>{{ r }} km</option>{% endfor %}
+        </select>
+      </label>
+      <fieldset class="span-all"><legend>Deal rating</legend>
+        {% for d in facets.deals %}<label class="chk"><input type="checkbox" name="deal" value="{{ d }}" {% if d in f.deal %}checked{% endif %}> {{ d }}</label>{% endfor %}
+      </fieldset>
+      <label class="chk span-all"><input type="checkbox" name="include_inactive" value="1" {% if f.include_inactive %}checked{% endif %}> Include sold / removed listings</label>
+      {% if f.postcode and f.radius_km %}
+      <p class="muted small span-all">{% if geo_ok %}Distance uses the suburb for Cars24 listings. Carsales only gives a state, so its listings in the postcode's state are included.{% else %}Postcode {{ f.postcode }} wasn't found; the distance filter is ignored.{% endif %}</p>
+      {% endif %}
+    </div>
+  </details>
   <div class="actions"><button type="submit">Apply</button><a class="btn ghost" href="/">Reset</a></div>
 </form>
 
@@ -39,31 +78,13 @@
 <div class="empty">
   <p><strong>No listings yet.</strong></p>
   <p>Create a saved search on <a href="/searches">Searches</a> and press <em>Run now</em>.
-     Check which sources are switched on under <a href="/sources">Sources</a>. <em>Demo</em> gives you fake sample data.</p>
+     Check which sources are switched on under <a href="/sources">Sources</a>.
+     <em>Demo</em> (fake sample data) listings are only shown when you choose Demo as the source.</p>
 </div>
 {% else %}
 <ul class="grid">
   {% for l in items %}
-  <li class="card">
-    <a href="/listings/{{ l.id }}" class="card-link">
-      {{ photo(l, "thumb") }}
-      <div class="card-body">
-        <h2>{{ l.title }}</h2>
-        <p class="price">{{ l.price|money }} <small>{{ l.price_type|price_type }}</small></p>
-        {{ deal_badge(l) }}
-        <p class="specs">
-          {% if l.odometer_km is not none %}<span>{{ l.odometer_km|km }}</span>{% endif %}
-          {% if l.transmission %}<span>{{ l.transmission }}</span>{% endif %}
-          {% if l.state %}<span>{{ l.suburb ~ ', ' if l.suburb }}{{ l.state }}</span>{% endif %}
-        </p>
-        {% set also = others.get(l.id, [])|selectattr("is_active")|list %}
-        {% if also %}<p class="also small">Also on {% for o in also %}{{ source_badge(o.source, source_labels) }}{% if o.price and l.price and o.price != l.price %} <span class="muted">{{ o.price|money }}</span>{% endif %}{% endfor %}</p>{% endif %}
-        <p class="meta">{{ source_badge(l.source, source_labels) }}
-          {% if not l.is_active %}<span class="pill pill-off">Gone</span>{% endif %}
-          <span class="muted">seen {{ l.first_seen|ago }}</span></p>
-      </div>
-    </a>
-  </li>
+  {{ listing_card(l, others.get(l.id, [])) }}
   {% endfor %}
 </ul>
 {% if pages > 1 %}

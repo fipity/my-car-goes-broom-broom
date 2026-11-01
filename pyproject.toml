@@ -1,6 +1,6 @@
 [project]
 name = "carscout"
-version = "0.6.0"
+version = "0.7.0"
 description = "Self-hosted Australian used-car listings aggregator with market valuation"
 requires-python = ">=3.12"
 dependencies = [
@@ -31,7 +31,7 @@ build-backend = "setuptools.build_meta"
 include = ["carscout*"]
 
 [tool.setuptools.package-data]
-carscout = ["web/templates/*.html", "web/static/*", "normalise/data/*.yaml"]
+carscout = ["web/templates/*.html", "web/static/*", "normalise/data/*.yaml", "geo/data/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

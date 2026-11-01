@@ -2,7 +2,7 @@
 
 A self-hosted aggregator for Australian used-car listings, for personal use. It runs your saved searches against several sites, stores every listing in one database with price history, and (from phase 6) estimates each car's market value.
 
-Status: **phase 6 of 8 done.** **Cars24** and **Carsales** are live, the same car on both sites is shown once, and every listing has a market value and deal rating. Gumtree and Drive block all automated access with bot challenges, so they're marked unavailable. Next: the full search UI (phase 7). See [`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/BRIEF.md`](docs/BRIEF.md) for the full spec.
+Status: **phase 7 of 8 done.** **Cars24** and **Carsales** are live, the same car on both sites is shown once, every listing has a market value and deal rating, and the UI has full filters, saved-search alerts and price charts. Gumtree and Drive block all automated access with bot challenges, so they're marked unavailable. Phase 8 (Facebook Marketplace) is optional. See [`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/BRIEF.md`](docs/BRIEF.md) for the full spec.
 
 ## Setup
 
@@ -23,9 +23,21 @@ Logs are JSON, one line per event: `docker compose logs -f worker`.
 
 ## Using it
 
-1. **Sources**: turn sources on or off. *Cars24* and *Carsales* are live. *Demo* generates fake listings for trying things out.
-2. **Searches**: save a search, e.g. "Toyota Corolla 2015–2020, under 120,000 km, VIC". Scheduled searches run on `SCRAPE_CRON` (every 6 hours by default). **Run now** queues one immediately.
-3. **Listings**: browse and filter everything collected. Each listing has its specs, photos and price history. Sold or removed cars are kept but hidden; tick **Include sold** to see them.
+CarScout only fetches what your **saved searches** ask for. It doesn't crawl whole sites, so the Listings page holds the makes and models you've searched for. Add a search for every car you're interested in.
+
+1. **Searches**: save a search, e.g. "Toyota Corolla 2015–2020, under 120,000 km, VIC". You can narrow it by variant, body, transmission and price, and limit it to particular sources. Scheduled searches run on `SCRAPE_CRON` (every 6 hours by default); **Run now** queues one immediately. Each search has its own page:
+   - **New**: listings new to CarScout since you last pressed **Mark as seen**.
+   - **Price drops**: price cuts since then, with the old price.
+   - **All**: everything it currently matches, sortable by best deal.
+
+   Editing a search's criteria resets which listings it tracks; the listings themselves are kept.
+2. **Listings**: everything collected, one card per car, with a deal badge and the market value. The main filters are always visible. **More filters** adds variant, year, price and km ranges, body, transmission, fuel, seller, source, deal rating and **distance from a postcode**. Sort by best deal, price, newest, km, year, or nearest. Sold or removed cars are kept but hidden; tick **Include sold** to see them.
+3. **A listing**: specs, photos, market value with its comparables, the same car on other sites, and a **price history chart** across every site it's listed on.
+4. **Sources**: status, active listings, recent runs (✓ / ! / ✕) and on/off toggles.
+
+**Distance search** uses suburb coordinates from GeoNames (CC BY 4.0), loaded on first start. Cars24 listings have a suburb. Carsales only gives a state, so with a radius set, Carsales listings in the postcode's state are included.
+
+*Demo* (fake data) listings are hidden unless you pick Demo as the source. To delete them, run `cli purge-source demo`.
 
 Maintenance commands:
 
@@ -34,6 +46,7 @@ docker compose exec api python -m carscout.cli purge-source demo   # delete one 
 docker compose exec api python -m carscout.cli reparse cars24      # re-run the parser over stored raw payloads (then dedupe)
 docker compose exec api python -m carscout.cli dedupe              # recompute which listings are the same car (then revalue)
 docker compose exec api python -m carscout.cli revalue             # recompute valuations (after editing config/valuation.yaml)
+docker compose exec api python -m carscout.cli load-postcodes      # reload postcode coordinates (done automatically on first start)
 ```
 
 ### When a listing counts as gone
@@ -136,4 +149,4 @@ docker compose run --rm --no-deps -v "$PWD/migrations:/app/migrations" api \
 
 ## Data model
 
-`listings` (the common schema, unique per source and source ID) · `price_history` (one row per price change) · `search_listings` (which search returned which listing, for "gone" detection) · `raw_payloads` (verbatim source data, saved only when it changes) · `saved_searches` · `scrape_runs` (also the job queue) · `sources` · `vehicles` (one row per physical car; every listing points to one) · `valuations` (estimate, range, label, confidence and comparables per listing) · `postcodes` (radius search, phase 7).
+`listings` (the common schema, unique per source and source ID) · `price_history` (one row per price change) · `search_listings` (which search returned which listing, for "gone" detection) · `raw_payloads` (verbatim source data, saved only when it changes) · `saved_searches` · `scrape_runs` (also the job queue) · `sources` · `vehicles` (one row per physical car; every listing points to one) · `valuations` (estimate, range, label, confidence and comparables per listing) · `postcodes` (suburb coordinates for distance search; GeoNames, CC BY 4.0).

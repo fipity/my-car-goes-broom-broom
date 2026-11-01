@@ -98,6 +98,8 @@ class NormalisedListing:
     suburb: str | None = None
     state: str | None = None
     postcode: str | None = None
+    lat: float | None = None  # if the source gives coordinates; else looked up from suburb + state
+    lon: float | None = None
     images: list[str] = field(default_factory=list)
     description: str | None = None
     rego: str | None = None

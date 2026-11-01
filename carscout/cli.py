@@ -5,6 +5,7 @@
                         use after changing parse() or the normalise/data/*.yaml tables
   dedupe                recompute which listings are the same car, across all sources (then revalue)
   revalue               recompute every market valuation (after editing config/valuation.yaml)
+  load-postcodes        (re)load the postcode coordinates used by radius search
 """
 from __future__ import annotations
 
@@ -38,7 +39,7 @@ def reparse(name: str) -> tuple[int, int]:
     from dataclasses import asdict
 
     from carscout.sources.base import RawListing, load_plugin
-    from carscout.worker.runner import _LISTING_FIELDS, _fit
+    from carscout.worker.runner import _LISTING_FIELDS, _fit, enrich_location
 
     cfg = load_sources().get(name)
     if cfg is None:
@@ -55,7 +56,7 @@ def reparse(name: str) -> tuple[int, int]:
             payload = raw.payload_json if raw.content_type == "json" else raw.payload_text
             parsed = asdict(plugin.parse(RawListing(raw.source_listing_id, raw.url or listing.url,
                                                     payload, raw.content_type)))
-            values = _fit({k: parsed[k] for k in _LISTING_FIELDS})
+            values = enrich_location(s, _fit({k: parsed[k] for k in _LISTING_FIELDS}))
             if any(getattr(listing, k) != v for k, v in values.items()):
                 changed += 1
                 for k, v in values.items():
@@ -80,6 +81,14 @@ def main(argv: list[str]) -> int:
         print(f"{st.get('listings', 0)} listings are {st.get('vehicles', 0)} cars; "
               f"{st.get('multi', 0)} cars are listed more than once. Re-running valuations...")
         argv = ["revalue"]
+    if argv in (["load-postcodes"], ["load-postcodes", "--if-empty"]):
+        from carscout.geo.postcodes import load_postcodes
+
+        with get_sessionmaker().begin() as s:
+            n = load_postcodes(s, force="--if-empty" not in argv)
+        if n:
+            print(f"Loaded {n} postcode/suburb rows.")
+        return 0
     if argv == ["revalue"]:
         from carscout.valuation.store import revalue
 

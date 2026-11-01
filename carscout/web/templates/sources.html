@@ -12,11 +12,18 @@
       {% if s.use_browser %}<span class="pill">needs browser</span>{% endif %}
       {% if s.queued %}<span class="pill pill-running">{{ s.queued }} queued/running</span>{% endif %}
       <p class="muted small">
+        {% if s.active_listings %}<a href="/?source={{ s.name }}">{{ "{:,}".format(s.active_listings) }} active listing{{ '' if s.active_listings == 1 else 's' }}</a> · {% endif %}
         Last run {{ s.last_run_at|ago }}{% if s.last_count is not none %} · {{ s.last_count }} found{% endif %}
         {% if s.last_ok_at and s.state == 'degraded' %} · last OK {{ s.last_ok_at|ago }}{% endif %}
       </p>
       {% if s.note %}<p class="muted small">{{ s.note }}</p>{% endif %}
       {% if s.last_error %}<p class="error small">{{ s.last_error }}</p>{% endif %}
+      {% if s.recent_runs %}
+      <p class="runs-strip small" aria-label="Recent runs, newest first">
+        {% for r in s.recent_runs %}<span class="run-dot run-{{ r.status }}" title="{{ r.finished_at|local }}: {{ r.status }}, {{ r.found }} found, {{ r.requests }} requests{% if r.error %} ({{ r.error }}){% endif %}">{{ {'ok': '✓', 'degraded': '!', 'failed': '✕'}.get(r.status, '·') }}</span>{% endfor %}
+        <span class="muted">recent runs, newest first</span>
+      </p>
+      {% endif %}
     </div>
     {% if s.toggle_allowed %}
     <form method="post" action="/sources/{{ s.name }}/toggle">

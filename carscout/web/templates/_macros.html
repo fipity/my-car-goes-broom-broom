@@ -25,3 +25,70 @@
 {% macro state_pill(state, label) -%}
 <span class="pill pill-{{ state }}">{{ label }}</span>
 {%- endmacro %}
+
+{% macro listing_card(l, also=[], note=None) -%}
+<li class="card">
+  <a href="/listings/{{ l.id }}" class="card-link">
+    {{ photo(l, "thumb") }}
+    <div class="card-body">
+      <h2>{{ l.title }}</h2>
+      <p class="price">{{ l.price|money }} <small>{{ l.price_type|price_type }}</small></p>
+      {% if note %}<p class="note small">{{ note }}</p>{% endif %}
+      {{ deal_badge(l) }}
+      <p class="specs">
+        {% if l.odometer_km is not none %}<span>{{ l.odometer_km|km }}</span>{% endif %}
+        {% if l.transmission %}<span>{{ l.transmission }}</span>{% endif %}
+        {% if l.state %}<span>{{ l.suburb ~ ', ' if l.suburb }}{{ l.state }}</span>{% endif %}
+      </p>
+      {% set also = also|selectattr("is_active")|list %}
+      {% if also %}<p class="also small">Also on {% for o in also %}{{ source_badge(o.source, source_labels) }}{% if o.price and l.price and o.price != l.price %} <span class="muted">{{ o.price|money }}</span>{% endif %}{% endfor %}</p>{% endif %}
+      <p class="meta">{{ source_badge(l.source, source_labels) }}
+        {% if not l.is_active %}<span class="pill pill-off">Gone</span>{% endif %}
+        <span class="muted">seen {{ l.first_seen|ago }}</span></p>
+    </div>
+  </a>
+</li>
+{%- endmacro %}
+
+{% macro search_form(action, states, source_choices, s=None, submit="Save search") -%}
+{% set p = s.params if s else {} %}
+<form method="post" action="{{ action }}" class="form-grid">
+  <label class="span2">Name<input name="name" required maxlength="200" value="{{ s.name if s else '' }}" placeholder="Corolla 2015–2020 VIC"></label>
+  <label>Make<input name="make" value="{{ p.make or '' }}" placeholder="Toyota"></label>
+  <label>Model<input name="model" value="{{ p.model or '' }}" placeholder="Corolla"></label>
+  <label>Variant / badge<input name="variant" value="{{ p.variant or '' }}" placeholder="optional, e.g. ZR"></label>
+  <label>Body<input name="body_type" value="{{ p.body_type or '' }}" placeholder="optional, e.g. Hatch"></label>
+  <label>Year from<input name="year_min" inputmode="numeric" value="{{ p.year_min or '' }}" placeholder="2015"></label>
+  <label>Year to<input name="year_max" inputmode="numeric" value="{{ p.year_max or '' }}" placeholder="2020"></label>
+  <label>Min price<input name="price_min" inputmode="numeric" value="{{ p.price_min or '' }}" placeholder="$"></label>
+  <label>Max price<input name="price_max" inputmode="numeric" value="{{ p.price_max or '' }}" placeholder="$"></label>
+  <label>Max km<input name="km_max" inputmode="numeric" value="{{ p.km_max or '' }}" placeholder="120000"></label>
+  <label>Transmission
+    <select name="transmission">
+      {% for v in ["", "Automatic", "Manual"] %}<option value="{{ v }}" {% if (p.transmission or '') == v %}selected{% endif %}>{{ v or 'Any' }}</option>{% endfor %}
+    </select>
+  </label>
+  <fieldset class="span2"><legend>States (none = all)</legend>
+    {% for st in states %}<label class="chk"><input type="checkbox" name="states" value="{{ st }}" {% if st in (p.states or []) %}checked{% endif %}> {{ st }}</label>{% endfor %}
+  </fieldset>
+  <fieldset class="span2"><legend>Sources (none = every enabled source)</legend>
+    {% for name, label in source_choices %}<label class="chk"><input type="checkbox" name="sources" value="{{ name }}" {% if s and s.sources and name in s.sources %}checked{% endif %}> {{ label }}</label>{% endfor %}
+  </fieldset>
+  <label class="chk span2"><input type="checkbox" name="schedule_enabled" value="1" {% if not s or s.schedule_enabled %}checked{% endif %}> Run on the schedule</label>
+  <div class="span2"><button type="submit">{{ submit }}</button></div>
+</form>
+{%- endmacro %}
+
+{% macro search_summary(s) -%}
+{%- set p = s.params -%}
+{{ [p.make, p.model, p.variant]|select|join(' ') or 'Any make' }}
+{%- if p.year_min or p.year_max %} · {{ p.year_min or '…' }}–{{ p.year_max or '…' }}{% endif %}
+{%- if p.km_max %} · under {{ p.km_max|km }}{% endif %}
+{%- if p.price_min %} · from {{ p.price_min|money }}{% endif %}
+{%- if p.price_max %} · under {{ p.price_max|money }}{% endif %}
+{%- if p.body_type %} · {{ p.body_type }}{% endif %}
+{%- if p.transmission %} · {{ p.transmission }}{% endif %}
+{%- if p.states %} · {{ p.states|join(', ') }}{% endif %}
+{%- if s.sources %} · {{ s.sources|map('title')|join(', ') }} only{% endif %}
+ · {{ 'scheduled' if s.schedule_enabled else 'manual only' }}
+{%- endmacro %}

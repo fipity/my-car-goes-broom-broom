@@ -1,7 +1,7 @@
 """JSON API under /api."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -19,7 +19,9 @@ from carscout.web.queries import (
     next_scheduled_run,
     query_listings,
     same_car,
+    search_changes,
     source_views,
+    update_search,
 )
 from carscout.worker.queue import enqueue_search
 
@@ -131,6 +133,28 @@ class SearchOut(Orm):
     sources: list[str] | None
     schedule_enabled: bool
     created_at: datetime
+    seen_at: datetime | None
+
+
+class SearchPatch(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=200)
+    params: dict[str, Any] | None = None
+    sources: list[str] | None = None
+    schedule_enabled: bool | None = None
+
+
+class PriceDropOut(BaseModel):
+    listing: ListingOut
+    was: int
+    now: int
+    at: datetime
+
+
+class SearchChangesOut(BaseModel):
+    since: datetime
+    active: int
+    new: list[ListingOut]
+    price_drops: list[PriceDropOut]
 
 
 class RunOut(Orm):
@@ -224,6 +248,44 @@ def run_search(search_id: int, db: DB) -> Any:
     runs = enqueue_search(db, search, trigger="manual")
     db.commit()
     return runs
+
+
+@router.patch("/searches/{search_id}", response_model=SearchOut)
+def patch_search(search_id: int, body: SearchPatch, db: DB) -> Any:
+    search = db.get(SavedSearch, search_id)
+    if not search:
+        raise HTTPException(404, "search not found")
+    fields = body.model_dump(exclude_unset=True)
+    if "params" in fields:
+        fields["params"] = SearchParams.from_dict(fields["params"] or {}).to_dict()
+    if "sources" in fields:
+        fields["sources"] = _validate_sources(fields["sources"])
+    update_search(db, search, **fields)
+    db.commit()
+    return search
+
+
+@router.get("/searches/{search_id}/changes", response_model=SearchChangesOut)
+def get_search_changes(search_id: int, db: DB) -> Any:
+    """New listings and price drops since the search was last marked seen (or created)."""
+    search = db.get(SavedSearch, search_id)
+    if not search:
+        raise HTTPException(404, "search not found")
+    ch = search_changes(db, search)
+    return SearchChangesOut(
+        since=ch.since, active=ch.active, new=[ListingOut.model_validate(l) for l in ch.new],
+        price_drops=[PriceDropOut(listing=ListingOut.model_validate(d.listing), was=d.was, now=d.now, at=d.at)
+                     for d in ch.drops])
+
+
+@router.post("/searches/{search_id}/seen", response_model=SearchOut)
+def post_search_seen(search_id: int, db: DB) -> Any:
+    search = db.get(SavedSearch, search_id)
+    if not search:
+        raise HTTPException(404, "search not found")
+    search.seen_at = datetime.now(UTC)
+    db.commit()
+    return search
 
 
 @router.get("/runs", response_model=list[RunOut])

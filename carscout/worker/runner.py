@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from carscout.core.config import Settings, get_settings, load_sources
 from carscout.core.logging import get_logger
 from carscout.dedupe.store import dedupe
+from carscout.geo.postcodes import locate_suburb
 from carscout.valuation.store import revalue
 from carscout.models import (
     Listing,
@@ -57,6 +58,17 @@ def _fit(values: dict[str, Any]) -> dict[str, Any]:
         v = values.get(k)
         if isinstance(v, str) and len(v) > n:
             values[k] = v[:n]
+    return values
+
+
+def enrich_location(session: Session, values: dict[str, Any]) -> dict[str, Any]:
+    """Fill a missing postcode and/or coordinates from suburb + state. Source values win."""
+    if (values.get("lat") is None or not values.get("postcode")) and values.get("suburb") and values.get("state"):
+        found = locate_suburb(session, values["suburb"], values["state"])
+        if found:
+            values["postcode"] = values.get("postcode") or found[0]
+            if values.get("lat") is None:
+                values["lat"], values["lon"] = found[1], found[2]
     return values
 
 
@@ -144,7 +156,7 @@ def store_listing(
         session.flush()
 
     parsed = asdict(plugin.parse(raw))
-    values = _fit({k: parsed[k] for k in _LISTING_FIELDS})
+    values = enrich_location(session, _fit({k: parsed[k] for k in _LISTING_FIELDS}))
 
     if listing is None:
         listing = Listing(
