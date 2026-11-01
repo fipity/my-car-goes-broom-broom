@@ -37,3 +37,14 @@ Nissan:
   Navara: []
   X-Trail: [xtrail, x trail]
   Patrol: []
+
+# Pattern rules, tried when no alias matches. `model` and `variant_prefix` may use {1}, {2}...
+# for regex groups; variant_prefix is put in front of the listing's variant so detail isn't lost.
+# Example: Cars24 calls a C200 model "C200"; Carsales calls it model "C-Class", variant "C200 ...".
+_rules:
+  Mercedes-Benz:
+    - pattern: '^([ABCEGSV])\s*-?\s*(\d{2,3}\s*[a-z]{0,2})$'
+      model: '{1}-Class'
+      variant_prefix: '{1}{2}'
+    - pattern: '^([ABCEGSV])[ -]?class$'
+      model: '{1}-Class'

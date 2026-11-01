@@ -16,7 +16,11 @@ sources:
     enabled: true
     delay: 6
     jitter: 4
-    implemented: false   # phase 3/4
+    options:
+      # Only the first page of each search path is served without a captcha, so a search fans
+      # out over a few paths (states, then body style / transmission splits).
+      max_pages: 8                       # requests per search per run
+      split_by: [state, bodystyle, transmission]
 
   gumtree:
     label: Gumtree

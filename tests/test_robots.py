@@ -45,6 +45,12 @@ def test_equal_length_allow_wins_and_specific_group():
     assert r.can_fetch("OtherBot/1.0", "https://x.test/p")  # tie: Allow wins
 
 
+def test_group_matches_product_token_not_substring():
+    r = Robots.parse("User-agent: Safari\nDisallow: /\n\nUser-agent: *\nAllow: /\n")
+    assert r.can_fetch(UA, "https://x.test/page")  # our UA mentions Safari but is "Mozilla"
+    assert not r.can_fetch("Safari/605.1", "https://x.test/page")
+
+
 async def test_client_honours_crawl_delay():
     def handler(req: httpx.Request):
         if req.url.path == "/robots.txt":

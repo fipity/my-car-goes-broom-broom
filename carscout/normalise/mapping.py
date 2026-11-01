@@ -34,6 +34,8 @@ def _model_table() -> dict[str, dict[str, str]]:
     raw = yaml.safe_load((DATA / "models.yaml").read_text()) or {}
     out: dict[str, dict[str, str]] = {}
     for make, models in raw.items():
+        if str(make).startswith("_"):
+            continue
         t: dict[str, str] = {}
         for canonical, aliases in (models or {}).items():
             canonical = str(canonical)
@@ -58,11 +60,49 @@ def normalise_make(name: str | None) -> str | None:
     return _make_table().get(_key(name), _smart_title(name.strip()))
 
 
-def normalise_model(make: str | None, model: str | None) -> str | None:
+@lru_cache
+def _model_rules() -> dict[str, list[tuple[re.Pattern[str], str, str | None]]]:
+    raw = (yaml.safe_load((DATA / "models.yaml").read_text()) or {}).get("_rules") or {}
+    return {
+        make: [(re.compile(r["pattern"], re.I), r["model"], r.get("variant_prefix")) for r in rules or []]
+        for make, rules in raw.items()
+    }
+
+
+def _fill(template: str, m: re.Match[str]) -> str:
+    def group(g: re.Match[str]) -> str:
+        v = (m.group(int(g.group(1))) or "").replace(" ", "")
+        return v.upper() if v.isalpha() and len(v) <= 3 else v  # class letters: "c" -> "C"
+
+    return re.sub(r"\{(\d+)\}", group, template)
+
+
+def normalise_model_variant(
+    make: str | None, model: str | None, variant: str | None = None
+) -> tuple[str | None, str | None]:
+    """Model plus variant, applying the pattern rules in models.yaml (e.g. Mercedes "C200" ->
+    model "C-Class", variant "C200 <variant>")."""
+    variant = variant.strip() if variant and variant.strip() else None
     if not model or not model.strip():
-        return None
+        return None, variant
+    model = model.strip()
     table = _model_table().get(make or "", {})
-    return table.get(_key(model), _smart_title(model.strip()))
+    if _key(model) in table:
+        return table[_key(model)], variant
+    for rx, model_t, prefix_t in _model_rules().get(make or "", []):
+        m = rx.match(model)
+        if m:
+            new_model = _fill(model_t, m)
+            if prefix_t:
+                prefix = _fill(prefix_t, m)
+                if not variant or not variant.upper().startswith(prefix):
+                    variant = f"{prefix} {variant}" if variant else prefix
+            return new_model, variant
+    return _smart_title(model), variant
+
+
+def normalise_model(make: str | None, model: str | None) -> str | None:
+    return normalise_model_variant(make, model)[0]
 
 
 _STATES = {"vic": "VIC", "victoria": "VIC", "nsw": "NSW", "newsouthwales": "NSW", "qld": "QLD",

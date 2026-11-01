@@ -78,8 +78,11 @@ class Robots:
 
     # -- queries -------------------------------------------------------------------------
     def _groups_for(self, user_agent: str) -> list[_Group]:
-        ua = user_agent.lower()
-        specific = [g for g in self._groups if any(a != "*" and a in ua for a in g.agents)]
+        # RFC 9309: match the product token ("Mozilla" in "Mozilla/5.0 (...) Chrome/..."),
+        # not any substring, or a "User-agent: Safari" group would apply to a Chrome UA.
+        m = re.match(r"[A-Za-z_-]+", user_agent.strip())
+        token = m.group(0).lower() if m else ""
+        specific = [g for g in self._groups if token and token in g.agents]
         if specific:
             return specific
         return [g for g in self._groups if "*" in g.agents]

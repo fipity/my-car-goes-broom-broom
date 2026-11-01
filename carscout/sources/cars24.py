@@ -24,7 +24,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from carscout.core.logging import get_logger
-from carscout.normalise.mapping import normalise_make, normalise_model, normalise_spec, normalise_state
+from carscout.normalise.mapping import (
+    normalise_make,
+    normalise_model,
+    normalise_model_variant,
+    normalise_spec,
+    normalise_state,
+)
 from carscout.sources.base import (
     KnownListing,
     NormalisedListing,
@@ -87,7 +93,7 @@ def _fingerprint(card: dict[str, Any]) -> tuple[Any, ...]:
 
 class Plugin(SourcePlugin):
     name = "cars24"
-    parser_version = 1
+    parser_version = 2  # 2: model pattern rules (Mercedes "C200" -> "C-Class")
 
     # -- search ----------------------------------------------------------------------------
     def search_paths(self, params: SearchParams) -> list[str]:
@@ -219,8 +225,10 @@ class Plugin(SourcePlugin):
         d: dict[str, Any] = p.get("detail") or {}
 
         make = normalise_make(d.get("make") or card.get("make"))
-        model = normalise_model(make, d.get("model") or card.get("model"))
-        variant = (d.get("variant") or card.get("variant") or card.get("subtitle") or "").strip() or None
+        model, variant = normalise_model_variant(
+            make, d.get("model") or card.get("model"),
+            d.get("variant") or card.get("variant") or card.get("subtitle"),
+        )
         year = _int(d.get("year") or card.get("year"))
 
         # Card alt text: "2022 - Toyota Corolla - Hatchback - Hybrid - Automatic"

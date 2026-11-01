@@ -9,7 +9,7 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
 | 1 | Plan & architecture | ✅ Approved 2026-11-01 |
 | 2 | Compose skeleton, DB schema, FastAPI, basic UI | ✅ Done 2026-11-01 |
 | 3 | First scraper + normalisation + storage | ✅ Done 2026-11-01 (Cars24) |
-| 4 | Remaining scrapers, one at a time | ⏭ Next (Carsales first) |
+| 4 | Remaining scrapers, one at a time | 🔄 In progress: Carsales ✅, Gumtree, Drive |
 | 5 | Dedupe + price history | (price history already recorded since phase 2) |
 | 6 | Valuation module + tests | |
 | 7 | Full UI: filters, detail, saved-search alerts, sources page | |
@@ -65,3 +65,23 @@ The brief is in [`BRIEF.md`](BRIEF.md). The approved architecture is in the "Arc
   - Cars24 lists Mercedes models as "C200"/"A250" (the sitemap has `mercedes-benz-c200`), whereas other sites use "C-Class". Map them in models.yaml when Carsales arrives, for dedupe and valuation.
   - Cars24 gives no postcode. Fill it from suburb + state using the `postcodes` table (phase 7).
   - Next up: Carsales. In phase 1 it served `__NEXT_DATA__` and JSON-LD with DataDome passed; re-check live first.
+
+## Phase 4 notes
+
+### Carsales (done 2026-11-01)
+- **Decision (user, 2026-11-01):** cards plus a modest fan-out, capped at `max_pages: 8` requests per search per run.
+- **Why:**
+  - Every URL with a query string (including `?offset=` paging) and every `/cars/details/` page gets a DataDome captcha. We don't get past it.
+  - Only the first page of SEO paths is served: `/cars/used/<make>/<model>/[<badge>-badge/][<state>-state/][<body>-bodystyle/][<trans>-transmission/]`.
+  - robots.txt also disallows `/cars?*`, `/cars/?*`, `?sort` and `/cars/details*?`. A test checks every path we build against it.
+- **Data:** each page's `__NEXT_DATA__` holds a server-driven UI tree with `ListingCard`s (~21 organic + ~8 promoted).
+  - Parsed fields: make/model/year/price/state/ad type (dealer, private, demo) from tracking metadata; body/engine/transmission/km from `keyDetailsTexts`; drive-away vs EGC from `priceInfo`; badge and drivetrain from the subtitle ("Ascent Sport Auto F", where F = FWD).
+  - Not available: VIN, suburb, description, colour.
+- **Fan-out:** first one page per state in the search. While budget remains, splits by state, body style and transmission, using values seen on the cards (most common first), so no requests go to empty paths.
+- **Gone detection:** a run counts as complete, and the gone check runs, only when every base path fits on its first page.
+- **Live test**, saved search "Corolla 2015-2020 VIC": 6 requests (base + hatch, sedan, auto, manual splits), 147 cards seen, 8 matched and stored. No captcha.
+- **Normalisation:**
+  - `models.yaml` gained `_rules` (regex). Mercedes "C200" (Cars24) → model "C-Class", variant "C200 …", matching Carsales. Cars24 `parser_version` is now 2. Run `cli reparse cars24` after deploying (no Mercedes in the DB yet).
+  - `specs.yaml` gained the Carsales drivetrain shorthands (F, R, i-ACTIV AWD, GR-FOUR).
+- **Robots:** groups now match on the UA product token ("Mozilla"), per RFC 9309, not on any substring.
+- **Phase 6 idea:** the JSON-LD name carries the model series ("KF Series"), and it's kept in the raw payload. It would be a good comparable key if added as a column.

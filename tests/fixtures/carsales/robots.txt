@@ -1,0 +1,511 @@
+
+# ============================================================
+# carsales.com.au — Robots.txt
+# AI, Search & Agent Policy
+# Updated: 2026-10-26
+#
+# Version History
+# Prior versions unknown
+# 2025-10-17 — v2.0 — Versioning commences GEO Updates applied
+# 2026-02-27 — v2.1 — AmazonAdbot added
+# 2026-03-04 — v3.0 — Quarterly GEO review
+# 2026-06-22 — v3.1 — DEVOPS-37316 Consolidated all ad platform bots into single section 3
+# 2026-10-26 — v3.2 — RT-10238 OAI-AdsBot added to section 3 (OpenAI Ads landing page validation)
+# ============================================================
+
+# ----------------------------
+# Sitemaps
+# ----------------------------
+Sitemap: https://www.carsales.com.au/sitemaps/carsales/sitemaps.xml
+Sitemap: https://www.carsales.com.au/sitemaps/carsales/LatestEditorialDetails.xml
+Sitemap: https://www.carsales.com.au/sitemaps/carsales/EditorialListing.xml
+Sitemap: https://www.carsales.com.au/sitemaps/carsales/EditorialDetails.xml
+Sitemap: https://www.carsales.com.au/sitemaps/carsales/showroom-content-hub.xml
+Sitemap: https://www.carsales.com.au/sitemaps/carsales/ResearchMakeModelPage.xml
+Sitemap: https://www.carsales.com.au/sitemaps/carsales/location-search.xml
+
+
+# ============================================================
+# 1. Explicitly BLOCKED — Dataset brokers, scrapers, low-trust
+# ============================================================
+
+User-agent: Omgili
+Disallow: /
+
+User-agent: omgilibot
+Disallow: /
+
+User-agent: Webzio-Extended
+Disallow: /
+
+User-agent: Timpibot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: DeepSeekBot
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
+
+
+# ============================================================
+# 2. BLOCKED — Baidu & Yandex ecosystems (all variants)
+# ============================================================
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: Baiduspider-image
+Disallow: /
+
+User-agent: Baiduspider-mobile
+Disallow: /
+
+User-agent: Sogou Push Spider
+Disallow: /
+
+User-agent: Sogou web spider
+Disallow: /
+
+User-agent: Sogou
+Disallow: /
+
+User-agent: Sogou inst spider
+Disallow: /
+
+User-agent: Sogou spider2
+Disallow: /
+
+User-agent: Yandex
+Disallow: /
+
+User-agent: YandexBot
+Disallow: /
+
+User-agent: YandexAdditional
+Disallow: /
+
+User-agent: YandexAdditionalBot
+Disallow: /
+
+# ============================================================
+# 3. SEARCH ENGINES & AD PLATFORMS — Microsoft / Amazon Ads / Ad Verification (explicitly ALLOWED)
+# Updated: 2026-06-22 — DEVOPS-37316 — Consolidated ad platform bots into single section
+# ============================================================
+
+User-agent: bingbot
+Allow: /
+
+User-agent: msnbot
+Allow: /
+
+User-agent: msnbot-media
+Allow: /
+
+User-agent: AmazonAdBot
+Allow: /
+
+User-agent: OAI-AdsBot
+Allow: /
+
+User-agent: Mediapartners-Google
+Allow: /
+
+User-agent: Adagiobot/1.0
+Allow: /
+
+User-agent: adaptmx_ads_txt/1.0
+Allow: /
+
+User-agent: CriteoBot/0.1
+Allow: /
+
+User-agent: Verity/1.1
+Allow: /
+
+User-agent: IAB-Tech-Lab
+Allow: /
+
+User-agent: ias_crawler
+Allow: /
+
+User-agent: AdsTxtCrawler/1.0
+Allow: /
+
+User-agent: OpenXAdsTxtCrawler
+Allow: /
+
+User-agent: PubMatic-AdsTxt-Crawler
+Allow: /
+
+User-agent: PubMatic Crawler Bot
+Allow: /
+
+User-agent: Opebot-v
+Allow: /
+
+User-agent: SeedtagBot
+Allow: /
+
+
+# ============================================================
+# 4. AI SEARCH / INDEXING — Allowed (non-training)
+# ============================================================
+
+User-agent: Applebot
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: OAI-SearchBot
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Claude-SearchBot
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: AzureAI-SearchBot
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Amzn-SearchBot
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: meta-webindexer
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+
+# ============================================================
+# 5. AI ANSWERING / USER-INITIATED AGENTS — Explicit allow paths
+# ============================================================
+
+User-agent: ChatGPT-User
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: ChatGPT Agent
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Claude-User
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Claude-Web
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Perplexity-User
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: AmazonBuyForMe
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Amzn-User
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Google-GeminiNotebook
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Gemini-Deep-Research
+Allow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+
+# ============================================================
+# 6. TRAINING — GPTBot & Claude (explicit policy exception)
+# ============================================================
+
+User-agent: GPTBot
+Allow: /$
+Disallow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: ClaudeBot
+Allow: /$
+Disallow: /
+Allow: /cars/
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+
+# ============================================================
+# 7. TRAINING — All Other Training Bots (Blocked - except homepage, editorial, research, owner-reviews)
+# ============================================================
+
+User-agent: Amazonbot
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-Agent: amazon-kendra-
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: anthropic-ai
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Applebot-Extended
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Bytespider
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: FacebookBot
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: CloudVertexBot
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: GoogleAgent-Mariner
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Google-CloudVertexBot
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Google-Extended
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: Kangaroo Bot
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: meta-externalagent
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: PetalBot
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: PhindBot
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+User-agent: TikTokSpider
+Allow: /$
+Disallow: /
+Allow: /editorial/
+Allow: /research/
+Allow: /owner-reviews/
+
+
+# ============================================================
+# 8. EXISTING SEO / SCRAPER BLOCKS (unchanged)
+# ============================================================
+
+User-agent: trovitBot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
+User-agent: ShopWiki
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: Exabot
+Disallow: /
+
+User-agent: sistrix
+Disallow: /
+
+User-agent: XoviBot
+Disallow: /
+
+User-agent: Flamingo_SearchEngine
+Disallow: /
+
+User-agent: Nutch
+Disallow: /
+
+User-agent: ADmantX
+Disallow: /
+
+User-agent: CarsnipBot
+Disallow: /
+
+
+# ============================================================
+# 9. GLOBAL DEFAULTS & PROTECTED ENDPOINTS
+# ============================================================
+
+User-agent: *
+Crawl-delay: 2
+
+# APIs & internal services
+Disallow: /api/
+Disallow: /_api/
+Disallow: /ajax/
+Disallow: /mobiapi/
+Disallow: /mobiapimemberapi/*
+Disallow: /v1/
+
+# Transactional & behavioural endpoints
+Disallow: /enquiry/
+Disallow: /preferences/*
+Disallow: /*?event=save-item
+Disallow: /*?sort
+Disallow: /*?Sort
+Disallow: /chat/?conversationId=
+
+# Cars transactional refinements
+Disallow: /cars?*
+Disallow: /cars/?*
+Disallow: /cars/details*?
+Disallow: /cars/results?*
+Disallow: /cars/photogallery*
+Disallow: /cars/gallery*
+
+# Editorial internal tooling
+Disallow: /editorial/api/
+Disallow: /editorial/results*
+Disallow: /editorial/search-results*
+
+# Misc / legacy
+Disallow: /print/
+Disallow: /pdf/
+Disallow: /print.aspx
+Disallow: /distance-calculator/
+Disallow: /error/*
+Disallow: /*.aspx
+Disallow: /_proxy/*
+Disallow: /_listing/*
+Disallow: /_listings/*
+Disallow: /_details/*
+Disallow: /_homepage/*
+Disallow: /stories/
+Disallow: /mediaad/
+Disallow: /gallery/
+Disallow: /pls/
+Disallow: /Tig/
+Disallow: /v2/help-me-choose/

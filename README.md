@@ -2,7 +2,7 @@
 
 A self-hosted aggregator for Australian used-car listings, for personal use. It runs your saved searches against several sites, stores every listing in one database with price history, and (from phase 6) estimates each car's market value.
 
-Status: **phase 3 of 8.** The app, database, worker, scheduler and basic UI run end to end. **Cars24** is the first real source; Carsales, Gumtree and Drive follow in phase 4. See [`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/BRIEF.md`](docs/BRIEF.md) for the full spec.
+Status: **phase 4 of 8, in progress.** **Cars24** and **Carsales** are live; Gumtree and Drive are next. See [`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/BRIEF.md`](docs/BRIEF.md) for the full spec.
 
 ## Setup
 
@@ -23,7 +23,7 @@ Logs are JSON, one line per event: `docker compose logs -f worker`.
 
 ## Using it
 
-1. **Sources**: turn sources on or off. *Cars24* is live. *Demo* generates fake listings for trying things out.
+1. **Sources**: turn sources on or off. *Cars24* and *Carsales* are live. *Demo* generates fake listings for trying things out.
 2. **Searches**: save a search, e.g. "Toyota Corolla 2015–2020, under 120,000 km, VIC". Scheduled searches run on `SCRAPE_CRON` (every 6 hours by default). **Run now** queues one immediately.
 3. **Listings**: browse and filter everything collected. Each listing has its specs, photos and price history. Sold or removed cars are kept but hidden; tick **Include sold** to see them.
 
@@ -57,7 +57,8 @@ If a site keeps refusing, or serves a bot-challenge page (Cloudflare, DataDome, 
 | Source | Status | How |
 |---|---|---|
 | Cars24 | ✅ live | Make/model pages (`/buy-used-toyota-corolla/`, 20 cars a page) read from the embedded Next.js data, then one detail page per car for VIN, suburb, colour, body, drivetrain and engine. robots.txt disallows `?f=` filters, so year, km, price and state are filtered by CarScout after fetching. Detail pages are reused for up to `detail_max_age_days` while price, km and status are unchanged, so a repeat run of a 21-car search costs about 3 requests. Cars24 is a retailer: every listing is a dealer listing with an EGC price, located at a hub (Melbourne, Sydney, Brisbane). |
-| Carsales, Gumtree, Drive | phase 4 | |
+| Carsales | ✅ live, partial | Carsales puts a DataDome captcha on every URL with a query string (so no `?offset=` paging) and on every detail page. CarScout doesn't try to get past it, so it reads only the **first page (~25 cars) of SEO search paths** such as `/cars/used/toyota/corolla/victoria-state/hatch-bodystyle/`. To see more of a big search, it fans out over up to `max_pages` paths per run: one per state in the search, then splits by state, body style and transmission using the values seen on the first page. Year, km and price are filtered by CarScout. You get card data only (no VIN, suburb or description), and "sold" detection only runs when a search is small enough to fit on its first pages. Coverage builds up over runs as Carsales' "Featured" order changes. |
+| Gumtree, Drive | phase 4 | |
 | Facebook Marketplace | phase 8 (optional) | |
 
 ## Adding a source
